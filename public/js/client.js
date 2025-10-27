@@ -6,6 +6,7 @@ class GameClient {
     this.gameState = null;
     this.renderer = null;
     this.playerName = '';
+    this.hiddenOffers = new Set();
 
     this.setupSocketListeners();
     this.setupUIListeners();
@@ -133,6 +134,36 @@ class GameClient {
       this.renderer.addLogMessage('A player disconnected');
     });
 
+    this.socket.on('tradeOffered', (data) => {
+      this.gameState = data.game;
+      this.updateTradeOffers();
+      const offeringPlayer = this.gameState.players.find(p => p.id === data.offer.offeringPlayerId);
+      this.renderer.addLogMessage(`${offeringPlayer.name} created a trade offer`);
+    });
+
+    this.socket.on('tradeResponseUpdated', (data) => {
+      this.gameState = data.game;
+      this.updateTradeOffers();
+      const player = this.gameState.players.find(p => p.id === data.playerId);
+      const responseText = data.response === 'accepted' ? 'accepted' : 'rejected';
+      this.renderer.addLogMessage(`${player.name} ${responseText} a trade offer`);
+    });
+
+    this.socket.on('tradeExecuted', (data) => {
+      this.gameState = data.game;
+      this.cleanupHiddenOffers();
+      this.updateGameUI();
+      this.updateTradeOffers();
+      this.renderer.addLogMessage(`Trade completed between ${data.offeringPlayer} and ${data.acceptingPlayer}`);
+    });
+
+    this.socket.on('tradeCancelled', (data) => {
+      this.gameState = data.game;
+      this.cleanupHiddenOffers();
+      this.updateTradeOffers();
+      this.renderer.addLogMessage('A trade offer was cancelled');
+    });
+
     this.socket.on('error', (data) => {
       alert(data.message);
       this.renderer.clearBuildMode();
@@ -201,7 +232,27 @@ class GameClient {
     });
 
     document.getElementById('tradeBtn').addEventListener('click', () => {
-      alert('Trading feature coming soon!');
+      this.openTradeModal();
+    });
+
+    // Trade modal controls
+    document.querySelector('.close-modal').addEventListener('click', () => {
+      this.closeTradeModal();
+    });
+
+    document.getElementById('cancelTradeBtn').addEventListener('click', () => {
+      this.closeTradeModal();
+    });
+
+    document.getElementById('submitTradeBtn').addEventListener('click', () => {
+      this.submitTradeOffer();
+    });
+
+    // Close modal when clicking outside
+    document.getElementById('tradeModal').addEventListener('click', (e) => {
+      if (e.target.id === 'tradeModal') {
+        this.closeTradeModal();
+      }
     });
   }
 
@@ -217,6 +268,352 @@ class GameClient {
     if (this.renderer.buildMode === 'road') {
       this.socket.emit('buildRoad', { gameId: this.gameId, edge });
     }
+  }
+
+  openTradeModal() {
+    const modal = document.getElementById('tradeModal');
+    modal.classList.add('active');
+
+    // Reset all inputs
+    ['wood', 'brick', 'sheep', 'wheat', 'ore'].forEach(resource => {
+      document.getElementById(`give-${resource}`).value = 0;
+      document.getElementById(`get-${resource}`).value = 0;
+    });
+
+    // Populate player dropdown
+    const select = document.getElementById('tradeTarget');
+    select.innerHTML = '<option value="">All Players</option>';
+
+    this.gameState.players.forEach(player => {
+      if (player.id !== this.playerId) {
+        const option = document.createElement('option');
+        option.value = player.id;
+        option.textContent = player.name;
+        select.appendChild(option);
+      }
+    });
+
+    // Set max values based on current resources
+    const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+    if (myPlayer) {
+      ['wood', 'brick', 'sheep', 'wheat', 'ore'].forEach(resource => {
+        document.getElementById(`give-${resource}`).max = myPlayer.resources[resource];
+      });
+    }
+  }
+
+  closeTradeModal() {
+    const modal = document.getElementById('tradeModal');
+    modal.classList.remove('active');
+  }
+
+  submitTradeOffer() {
+    const offering = {
+      wood: parseInt(document.getElementById('give-wood').value) || 0,
+      brick: parseInt(document.getElementById('give-brick').value) || 0,
+      sheep: parseInt(document.getElementById('give-sheep').value) || 0,
+      wheat: parseInt(document.getElementById('give-wheat').value) || 0,
+      ore: parseInt(document.getElementById('give-ore').value) || 0
+    };
+
+    const requesting = {
+      wood: parseInt(document.getElementById('get-wood').value) || 0,
+      brick: parseInt(document.getElementById('get-brick').value) || 0,
+      sheep: parseInt(document.getElementById('get-sheep').value) || 0,
+      wheat: parseInt(document.getElementById('get-wheat').value) || 0,
+      ore: parseInt(document.getElementById('get-ore').value) || 0
+    };
+
+    const targetPlayerId = document.getElementById('tradeTarget').value || null;
+
+    // Validate trade offer
+    const offeringTotal = Object.values(offering).reduce((a, b) => a + b, 0);
+    const requestingTotal = Object.values(requesting).reduce((a, b) => a + b, 0);
+
+    if (offeringTotal === 0) {
+      alert('You must offer at least one resource');
+      return;
+    }
+
+    if (requestingTotal === 0) {
+      alert('You must request at least one resource');
+      return;
+    }
+
+    // Check if player has enough resources
+    const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+    for (const [resource, amount] of Object.entries(offering)) {
+      if (myPlayer.resources[resource] < amount) {
+        alert(`You don't have enough ${resource}`);
+        return;
+      }
+    }
+
+    this.socket.emit('tradeOffer', {
+      gameId: this.gameId,
+      targetPlayerId,
+      offering,
+      requesting
+    });
+
+    this.closeTradeModal();
+  }
+
+  updateTradeOffers() {
+    if (!this.gameState || !this.gameState.tradeOffers) return;
+
+    const panel = document.getElementById('tradeOffersPanel');
+    const list = document.getElementById('tradeOffersList');
+
+    // Filter out hidden offers
+    if (!this.hiddenOffers) {
+      this.hiddenOffers = new Set();
+    }
+
+    const visibleOffers = this.gameState.tradeOffers.filter(offer => !this.hiddenOffers.has(offer.id));
+
+    if (visibleOffers.length === 0) {
+      panel.classList.remove('active');
+      return;
+    }
+
+    panel.classList.add('active');
+    list.innerHTML = '';
+
+    const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+
+    visibleOffers.forEach(offer => {
+      const offeringPlayer = this.gameState.players.find(p => p.id === offer.offeringPlayerId);
+      const isMyOffer = offer.offeringPlayerId === this.playerId;
+      const isTargetedAtMe = offer.targetPlayerId === this.playerId;
+      const canSeeOffer = !isMyOffer && (!offer.targetPlayerId || isTargetedAtMe);
+      const myResponse = offer.responses ? offer.responses[this.playerId] : null;
+      const hasEnoughResources = !isMyOffer && this.canAffordTrade(myPlayer, offer.requesting);
+
+      const offerDiv = document.createElement('div');
+      offerDiv.className = 'trade-offer-item';
+      if (isMyOffer) offerDiv.classList.add('my-offer');
+
+      const header = document.createElement('div');
+      header.className = 'trade-offer-header';
+      if (offer.targetPlayerId) {
+        const targetPlayer = this.gameState.players.find(p => p.id === offer.targetPlayerId);
+        header.textContent = isMyOffer
+          ? `Your offer to ${targetPlayer.name}`
+          : `${offeringPlayer.name} offers to ${targetPlayer.name}`;
+      } else {
+        header.textContent = isMyOffer
+          ? 'Your offer to all players'
+          : `${offeringPlayer.name} offers to all`;
+      }
+
+      const details = document.createElement('div');
+      details.className = 'trade-offer-details';
+
+      const gives = document.createElement('div');
+      gives.className = 'trade-offer-gives';
+      gives.innerHTML = '<h4>Gives:</h4>' + this.formatResources(offer.offering);
+
+      const gets = document.createElement('div');
+      gets.className = 'trade-offer-gets';
+      gets.innerHTML = '<h4>Gets:</h4>' + this.formatResources(offer.requesting);
+
+      details.appendChild(gives);
+      details.appendChild(gets);
+
+      offerDiv.appendChild(header);
+      offerDiv.appendChild(details);
+
+      // Show responses for the offering player
+      if (isMyOffer && offer.responses) {
+        const responsesDiv = document.createElement('div');
+        responsesDiv.className = 'trade-offer-responses';
+        responsesDiv.innerHTML = '<h4>Player Responses:</h4>';
+
+        const responseList = document.createElement('div');
+        responseList.className = 'response-list';
+
+        Object.entries(offer.responses).forEach(([playerId, response]) => {
+          const player = this.gameState.players.find(p => p.id === playerId);
+          if (!player) return;
+
+          const responseItem = document.createElement('div');
+          responseItem.className = 'response-item';
+
+          const playerName = document.createElement('span');
+          playerName.textContent = player.name;
+
+          const statusIcon = document.createElement('span');
+          statusIcon.className = `response-status ${response}`;
+          statusIcon.textContent = response === 'accepted' ? '✓' : response === 'rejected' ? '✗' : '?';
+
+          responseItem.appendChild(playerName);
+          responseItem.appendChild(statusIcon);
+          responseList.appendChild(responseItem);
+        });
+
+        responsesDiv.appendChild(responseList);
+        offerDiv.appendChild(responsesDiv);
+
+        // Show confirm buttons if anyone has accepted
+        if (offer.acceptedBy && offer.acceptedBy.length > 0) {
+          const confirmDiv = document.createElement('div');
+          confirmDiv.className = 'confirm-buttons';
+
+          offer.acceptedBy.forEach(acceptedPlayerId => {
+            const acceptedPlayer = this.gameState.players.find(p => p.id === acceptedPlayerId);
+            if (!acceptedPlayer) return;
+
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = 'btn btn-primary';
+            confirmBtn.textContent = `Complete trade with ${acceptedPlayer.name}`;
+            confirmBtn.onclick = () => {
+              this.socket.emit('tradeConfirm', {
+                gameId: this.gameId,
+                offerId: offer.id,
+                acceptingPlayerId: acceptedPlayerId
+              });
+            };
+            confirmDiv.appendChild(confirmBtn);
+          });
+
+          offerDiv.appendChild(confirmDiv);
+        }
+
+        // Cancel button
+        const actions = document.createElement('div');
+        actions.className = 'trade-offer-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-secondary';
+        cancelBtn.textContent = 'Cancel Offer';
+        cancelBtn.onclick = () => {
+          this.socket.emit('tradeCancel', { gameId: this.gameId, offerId: offer.id });
+        };
+        actions.appendChild(cancelBtn);
+        offerDiv.appendChild(actions);
+      }
+      // Show accept/reject buttons for other players
+      else if (canSeeOffer) {
+        const actions = document.createElement('div');
+        actions.className = 'trade-offer-actions';
+
+        if (myResponse === 'pending') {
+          const acceptBtn = document.createElement('button');
+          acceptBtn.className = 'btn btn-primary';
+          acceptBtn.textContent = 'Accept';
+          acceptBtn.disabled = !hasEnoughResources;
+          acceptBtn.onclick = () => {
+            this.socket.emit('tradeRespond', {
+              gameId: this.gameId,
+              offerId: offer.id,
+              response: 'accepted'
+            });
+          };
+          actions.appendChild(acceptBtn);
+
+          const rejectBtn = document.createElement('button');
+          rejectBtn.className = 'btn btn-secondary';
+          rejectBtn.textContent = 'Reject';
+          rejectBtn.onclick = () => {
+            this.socket.emit('tradeRespond', {
+              gameId: this.gameId,
+              offerId: offer.id,
+              response: 'rejected'
+            });
+          };
+          actions.appendChild(rejectBtn);
+        } else if (myResponse === 'accepted') {
+          const statusDiv = document.createElement('div');
+          statusDiv.style.padding = '10px';
+          statusDiv.style.textAlign = 'center';
+          statusDiv.style.color = '#51cf66';
+          statusDiv.style.fontWeight = 'bold';
+          statusDiv.textContent = '✓ You accepted this trade. Waiting for confirmation...';
+          offerDiv.appendChild(statusDiv);
+
+          const changeBtn = document.createElement('button');
+          changeBtn.className = 'btn btn-secondary';
+          changeBtn.textContent = 'Change to Reject';
+          changeBtn.onclick = () => {
+            this.socket.emit('tradeRespond', {
+              gameId: this.gameId,
+              offerId: offer.id,
+              response: 'rejected'
+            });
+          };
+          actions.appendChild(changeBtn);
+        } else if (myResponse === 'rejected') {
+          const statusDiv = document.createElement('div');
+          statusDiv.style.padding = '10px';
+          statusDiv.style.textAlign = 'center';
+          statusDiv.style.color = '#ff6b6b';
+          statusDiv.style.fontWeight = 'bold';
+          statusDiv.textContent = '✗ You rejected this trade';
+          offerDiv.appendChild(statusDiv);
+
+          const changeBtn = document.createElement('button');
+          changeBtn.className = 'btn btn-secondary';
+          changeBtn.textContent = 'Change to Accept';
+          changeBtn.disabled = !hasEnoughResources;
+          changeBtn.onclick = () => {
+            this.socket.emit('tradeRespond', {
+              gameId: this.gameId,
+              offerId: offer.id,
+              response: 'accepted'
+            });
+          };
+          actions.appendChild(changeBtn);
+        }
+
+        if (actions.children.length > 0) {
+          offerDiv.appendChild(actions);
+        }
+      }
+
+      list.appendChild(offerDiv);
+    });
+  }
+
+  canAffordTrade(player, requestedResources) {
+    if (!player || !requestedResources) return false;
+
+    for (const [resource, amount] of Object.entries(requestedResources)) {
+      if (player.resources[resource] < amount) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  hideTradeOffer(offerId) {
+    // Store hidden offer IDs in browser session
+    if (!this.hiddenOffers) {
+      this.hiddenOffers = new Set();
+    }
+    this.hiddenOffers.add(offerId);
+    this.updateTradeOffers();
+  }
+
+  cleanupHiddenOffers() {
+    if (!this.gameState || !this.gameState.tradeOffers) return;
+
+    // Remove offer IDs that no longer exist in the game state
+    const currentOfferIds = new Set(this.gameState.tradeOffers.map(offer => offer.id));
+    this.hiddenOffers = new Set([...this.hiddenOffers].filter(id => currentOfferIds.has(id)));
+  }
+
+  formatResources(resources) {
+    const parts = [];
+    const resourceNames = { wood: 'W', brick: 'B', sheep: 'S', wheat: 'Wh', ore: 'O' };
+
+    for (const [resource, amount] of Object.entries(resources)) {
+      if (amount > 0) {
+        parts.push(`${amount} ${resourceNames[resource]}`);
+      }
+    }
+
+    return parts.length > 0 ? parts.join(', ') : 'Nothing';
   }
 
   showMenu() {
@@ -275,6 +672,9 @@ class GameClient {
 
     const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
     const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+
+    // Update trade offers
+    this.updateTradeOffers();
 
     // Update header
     document.getElementById('currentPlayerName').textContent = currentPlayer.name;

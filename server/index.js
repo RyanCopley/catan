@@ -122,19 +122,54 @@ io.on('connection', (socket) => {
     io.to(gameId).emit('turnEnded', { game: game.getState() });
   });
 
-  socket.on('tradeOffer', ({ gameId, offer }) => {
+  socket.on('tradeOffer', ({ gameId, targetPlayerId, offering, requesting }) => {
     const game = games.get(gameId);
     if (!game) return;
 
-    io.to(gameId).emit('tradeOffered', { offer, playerId: socket.id });
+    const offer = game.createTradeOffer(socket.id, targetPlayerId, offering, requesting);
+    if (offer) {
+      io.to(gameId).emit('tradeOffered', { game: game.getState(), offer });
+    } else {
+      socket.emit('error', { message: 'Cannot create trade offer - insufficient resources' });
+    }
   });
 
-  socket.on('tradeAccept', ({ gameId, offerId }) => {
+  socket.on('tradeRespond', ({ gameId, offerId, response }) => {
     const game = games.get(gameId);
     if (!game) return;
 
-    game.executeTrade(offerId, socket.id);
-    io.to(gameId).emit('tradeExecuted', { game: game.getState() });
+    const result = game.respondToTrade(offerId, socket.id, response);
+    if (result.success) {
+      io.to(gameId).emit('tradeResponseUpdated', { game: game.getState(), offerId, playerId: socket.id, response });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  socket.on('tradeConfirm', ({ gameId, offerId, acceptingPlayerId }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.confirmTrade(offerId, socket.id, acceptingPlayerId);
+    if (result.success) {
+      io.to(gameId).emit('tradeExecuted', {
+        game: game.getState(),
+        offeringPlayer: result.offeringPlayer,
+        acceptingPlayer: result.acceptingPlayer
+      });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  socket.on('tradeCancel', ({ gameId, offerId }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const success = game.cancelTradeOffer(offerId, socket.id);
+    if (success) {
+      io.to(gameId).emit('tradeCancelled', { game: game.getState(), offerId });
+    }
   });
 
   socket.on('disconnect', () => {

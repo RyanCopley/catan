@@ -105,6 +105,84 @@
         <div id="gameLog"></div>
       </div>
     </div>
+
+    <!-- Trade Modal -->
+    <div id="tradeModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Create Trade Offer</h2>
+          <span class="close-modal">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="trade-section">
+            <h3>You Give:</h3>
+            <div class="resource-selectors" id="offeringResources">
+              <div class="resource-selector">
+                <label>Wood:</label>
+                <input type="number" id="give-wood" min="0" value="0">
+              </div>
+              <div class="resource-selector">
+                <label>Brick:</label>
+                <input type="number" id="give-brick" min="0" value="0">
+              </div>
+              <div class="resource-selector">
+                <label>Sheep:</label>
+                <input type="number" id="give-sheep" min="0" value="0">
+              </div>
+              <div class="resource-selector">
+                <label>Wheat:</label>
+                <input type="number" id="give-wheat" min="0" value="0">
+              </div>
+              <div class="resource-selector">
+                <label>Ore:</label>
+                <input type="number" id="give-ore" min="0" value="0">
+              </div>
+            </div>
+          </div>
+          <div class="trade-section">
+            <h3>You Get:</h3>
+            <div class="resource-selectors" id="requestingResources">
+              <div class="resource-selector">
+                <label>Wood:</label>
+                <input type="number" id="get-wood" min="0" value="0">
+              </div>
+              <div class="resource-selector">
+                <label>Brick:</label>
+                <input type="number" id="get-brick" min="0" value="0">
+              </div>
+              <div class="resource-selector">
+                <label>Sheep:</label>
+                <input type="number" id="get-sheep" min="0" value="0">
+              </div>
+              <div class="resource-selector">
+                <label>Wheat:</label>
+                <input type="number" id="get-wheat" min="0" value="0">
+              </div>
+              <div class="resource-selector">
+                <label>Ore:</label>
+                <input type="number" id="get-ore" min="0" value="0">
+              </div>
+            </div>
+          </div>
+          <div class="trade-section">
+            <h3>Trade With:</h3>
+            <select id="tradeTarget">
+              <option value="">All Players</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="submitTradeBtn" class="btn btn-primary">Offer Trade</button>
+          <button id="cancelTradeBtn" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade Offers Panel -->
+    <div id="tradeOffersPanel" class="trade-offers-panel">
+      <h3>Active Trade Offers</h3>
+      <div id="tradeOffersList"></div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

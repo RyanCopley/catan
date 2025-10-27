@@ -11,6 +11,8 @@ class Game {
     this.setupSettlementPlaced = false;
     this.setupRoadPlaced = false;
     this.buildings = { settlements: [], cities: [], roads: [] };
+    this.tradeOffers = []; // Active trade offers
+    this.nextTradeId = 1;
   }
 
   addPlayer(socketId, name) {
@@ -523,10 +525,184 @@ class Game {
     });
   }
 
+  createTradeOffer(offeringPlayerId, targetPlayerId, offering, requesting) {
+    const offeringPlayer = this.players.find(p => p.id === offeringPlayerId);
+    if (!offeringPlayer) return null;
+
+    // Validate that offering player has the resources they're offering
+    for (const [resource, amount] of Object.entries(offering)) {
+      if (offeringPlayer.resources[resource] < amount) {
+        return null; // Player doesn't have enough resources
+      }
+    }
+
+    const offer = {
+      id: this.nextTradeId++,
+      offeringPlayerId,
+      targetPlayerId, // null for offering to all players
+      offering, // { wood: 1, brick: 2, ... }
+      requesting, // { sheep: 1, wheat: 1, ... }
+      timestamp: Date.now(),
+      responses: {}, // { playerId: 'accepted' | 'rejected' | 'pending' }
+      acceptedBy: [] // List of player IDs who have accepted
+    };
+
+    // Initialize responses for all eligible players
+    this.players.forEach(player => {
+      if (player.id !== offeringPlayerId) {
+        if (!targetPlayerId || targetPlayerId === player.id) {
+          offer.responses[player.id] = 'pending';
+        }
+      }
+    });
+
+    this.tradeOffers.push(offer);
+    return offer;
+  }
+
+  respondToTrade(offerId, playerId, response) {
+    const offer = this.tradeOffers.find(o => o.id === offerId);
+    if (!offer) return { success: false, error: 'Trade offer not found' };
+
+    // Check if this player can respond
+    if (offer.offeringPlayerId === playerId) {
+      return { success: false, error: 'Cannot respond to your own trade' };
+    }
+
+    if (!(playerId in offer.responses)) {
+      return { success: false, error: 'This trade is not for you' };
+    }
+
+    // Update response
+    offer.responses[playerId] = response;
+
+    if (response === 'accepted') {
+      // Check if player has resources
+      const player = this.players.find(p => p.id === playerId);
+      if (!player) return { success: false, error: 'Player not found' };
+
+      for (const [resource, amount] of Object.entries(offer.requesting)) {
+        if (player.resources[resource] < amount) {
+          offer.responses[playerId] = 'rejected';
+          return { success: false, error: 'You do not have enough resources' };
+        }
+      }
+
+      if (!offer.acceptedBy.includes(playerId)) {
+        offer.acceptedBy.push(playerId);
+      }
+    } else if (response === 'rejected') {
+      // Remove from acceptedBy if they were there
+      offer.acceptedBy = offer.acceptedBy.filter(id => id !== playerId);
+    }
+
+    return { success: true };
+  }
+
+  confirmTrade(offerId, offeringPlayerId, acceptingPlayerId) {
+    const offer = this.tradeOffers.find(o => o.id === offerId);
+    if (!offer) return { success: false, error: 'Trade offer not found' };
+
+    // Verify the offering player is confirming
+    if (offer.offeringPlayerId !== offeringPlayerId) {
+      return { success: false, error: 'Only the offering player can confirm' };
+    }
+
+    // Verify the accepting player has accepted
+    if (!offer.acceptedBy.includes(acceptingPlayerId)) {
+      return { success: false, error: 'This player has not accepted your trade' };
+    }
+
+    // Execute the trade
+    const result = this.executeTrade(offerId, acceptingPlayerId);
+    return result;
+  }
+
   executeTrade(offerId, acceptingPlayerId) {
-    // Simplified trade execution
-    // In a full implementation, track trade offers and execute them
+    const offerIndex = this.tradeOffers.findIndex(o => o.id === offerId);
+    if (offerIndex === -1) return { success: false, error: 'Trade offer not found' };
+
+    const offer = this.tradeOffers[offerIndex];
+
+    // Check if this player can accept the trade
+    if (offer.targetPlayerId && offer.targetPlayerId !== acceptingPlayerId) {
+      return { success: false, error: 'This trade is not for you' };
+    }
+
+    // Cannot trade with yourself
+    if (offer.offeringPlayerId === acceptingPlayerId) {
+      return { success: false, error: 'Cannot trade with yourself' };
+    }
+
+    const offeringPlayer = this.players.find(p => p.id === offer.offeringPlayerId);
+    const acceptingPlayer = this.players.find(p => p.id === acceptingPlayerId);
+
+    if (!offeringPlayer || !acceptingPlayer) {
+      return { success: false, error: 'Player not found' };
+    }
+
+    // Validate offering player still has resources
+    for (const [resource, amount] of Object.entries(offer.offering)) {
+      if (offeringPlayer.resources[resource] < amount) {
+        this.tradeOffers.splice(offerIndex, 1); // Remove invalid offer
+        return { success: false, error: 'Offering player no longer has those resources' };
+      }
+    }
+
+    // Validate accepting player has resources
+    for (const [resource, amount] of Object.entries(offer.requesting)) {
+      if (acceptingPlayer.resources[resource] < amount) {
+        return { success: false, error: 'You do not have the requested resources' };
+      }
+    }
+
+    // Execute the trade
+    for (const [resource, amount] of Object.entries(offer.offering)) {
+      offeringPlayer.resources[resource] -= amount;
+      acceptingPlayer.resources[resource] += amount;
+    }
+
+    for (const [resource, amount] of Object.entries(offer.requesting)) {
+      acceptingPlayer.resources[resource] -= amount;
+      offeringPlayer.resources[resource] += amount;
+    }
+
+    // Remove the trade offer
+    this.tradeOffers.splice(offerIndex, 1);
+
+    return {
+      success: true,
+      offeringPlayer: offeringPlayer.name,
+      acceptingPlayer: acceptingPlayer.name
+    };
+  }
+
+  cancelTradeOffer(offerId, playerId) {
+    const offerIndex = this.tradeOffers.findIndex(o => o.id === offerId);
+    if (offerIndex === -1) return false;
+
+    const offer = this.tradeOffers[offerIndex];
+
+    // Only the offering player can cancel their own trade
+    if (offer.offeringPlayerId !== playerId) return false;
+
+    this.tradeOffers.splice(offerIndex, 1);
     return true;
+  }
+
+  rejectTradeOffer(offerId, playerId) {
+    const offerIndex = this.tradeOffers.findIndex(o => o.id === offerId);
+    if (offerIndex === -1) return false;
+
+    const offer = this.tradeOffers[offerIndex];
+
+    // Only reject if it's targeted at this player
+    if (offer.targetPlayerId === playerId) {
+      this.tradeOffers.splice(offerIndex, 1);
+      return true;
+    }
+
+    return false;
   }
 
   getState() {
@@ -540,7 +716,8 @@ class Game {
       diceRoll: this.diceRoll,
       setupRound: this.setupRound,
       setupSettlementPlaced: this.setupSettlementPlaced,
-      setupRoadPlaced: this.setupRoadPlaced
+      setupRoadPlaced: this.setupRoadPlaced,
+      tradeOffers: this.tradeOffers
     };
   }
 }
