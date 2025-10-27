@@ -219,6 +219,12 @@ class GameClient {
       this.renderer.addLogMessage('A trade offer was cancelled');
     });
 
+    this.socket.on('bankTradeExecuted', (data) => {
+      this.gameState = data.game;
+      this.updateGameUI();
+      this.renderer.addLogMessage(`${data.playerName} traded 4 ${data.gave} for 1 ${data.received} with the bank`);
+    });
+
     this.socket.on('error', (data) => {
       alert(data.message);
       this.renderer.clearBuildMode();
@@ -290,6 +296,10 @@ class GameClient {
       this.openTradeModal();
     });
 
+    document.getElementById('bankTradeBtn').addEventListener('click', () => {
+      this.openBankTradeModal();
+    });
+
     // Trade modal controls
     document.querySelector('.close-modal').addEventListener('click', () => {
       this.closeTradeModal();
@@ -307,6 +317,26 @@ class GameClient {
     document.getElementById('tradeModal').addEventListener('click', (e) => {
       if (e.target.id === 'tradeModal') {
         this.closeTradeModal();
+      }
+    });
+
+    // Bank trade modal controls
+    document.getElementById('closeBankTradeBtn').addEventListener('click', () => {
+      this.closeBankTradeModal();
+    });
+
+    document.getElementById('cancelBankTradeBtn').addEventListener('click', () => {
+      this.closeBankTradeModal();
+    });
+
+    document.getElementById('submitBankTradeBtn').addEventListener('click', () => {
+      this.submitBankTrade();
+    });
+
+    // Close bank trade modal when clicking outside
+    document.getElementById('bankTradeModal').addEventListener('click', (e) => {
+      if (e.target.id === 'bankTradeModal') {
+        this.closeBankTradeModal();
       }
     });
 
@@ -381,6 +411,64 @@ class GameClient {
   closeTradeModal() {
     const modal = document.getElementById('tradeModal');
     modal.classList.remove('active');
+  }
+
+  openBankTradeModal() {
+    const modal = document.getElementById('bankTradeModal');
+    modal.classList.add('active');
+
+    // Reset selections
+    document.getElementById('bankGiveResource').value = '';
+    document.getElementById('bankReceiveResource').value = '';
+
+    // Update resource availability in the give dropdown
+    const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+    if (myPlayer) {
+      const giveSelect = document.getElementById('bankGiveResource');
+      const options = giveSelect.querySelectorAll('option');
+      options.forEach(option => {
+        if (option.value) {
+          const resource = option.value;
+          const count = myPlayer.resources[resource];
+          option.textContent = `${resource.charAt(0).toUpperCase() + resource.slice(1)} (${count})`;
+          option.disabled = count < 4;
+        }
+      });
+    }
+  }
+
+  closeBankTradeModal() {
+    const modal = document.getElementById('bankTradeModal');
+    modal.classList.remove('active');
+  }
+
+  submitBankTrade() {
+    const givingResource = document.getElementById('bankGiveResource').value;
+    const receivingResource = document.getElementById('bankReceiveResource').value;
+
+    if (!givingResource || !receivingResource) {
+      alert('Please select both resources');
+      return;
+    }
+
+    if (givingResource === receivingResource) {
+      alert('You must select different resources');
+      return;
+    }
+
+    const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+    if (!myPlayer || myPlayer.resources[givingResource] < 4) {
+      alert(`You need at least 4 ${givingResource} to trade with the bank`);
+      return;
+    }
+
+    this.socket.emit('bankTrade', {
+      gameId: this.gameId,
+      givingResource,
+      receivingResource
+    });
+
+    this.closeBankTradeModal();
   }
 
   showDiscardModal(mustDiscard, resources) {
@@ -908,6 +996,7 @@ class GameClient {
     document.getElementById('buildRoadBtn').disabled = !canBuildRoad;
     document.getElementById('buildCityBtn').disabled = !canBuildCity;
     document.getElementById('tradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build');
+    document.getElementById('bankTradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build');
     document.getElementById('endTurnBtn').disabled = !canEndTurn;
 
     // Update all players status

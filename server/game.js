@@ -831,6 +831,36 @@ class Game {
     return false;
   }
 
+  tradeWithBank(playerId, givingResource, receivingResource) {
+    const player = this.players.find(p => p.id === playerId);
+
+    if (!player) {
+      return { success: false, error: 'Player not found' };
+    }
+
+    // Validate resource types
+    const validResources = ['wood', 'brick', 'sheep', 'wheat', 'ore'];
+    if (!validResources.includes(givingResource) || !validResources.includes(receivingResource)) {
+      return { success: false, error: 'Invalid resource type' };
+    }
+
+    // Check if player has at least 4 of the giving resource
+    if (player.resources[givingResource] < 4) {
+      return { success: false, error: `Not enough ${givingResource}. Need 4, have ${player.resources[givingResource]}` };
+    }
+
+    // Execute the trade
+    player.resources[givingResource] -= 4;
+    player.resources[receivingResource] += 1;
+
+    return {
+      success: true,
+      playerName: player.name,
+      gave: givingResource,
+      received: receivingResource
+    };
+  }
+
   getState() {
     return {
       id: this.id,

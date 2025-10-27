@@ -172,6 +172,23 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('bankTrade', ({ gameId, givingResource, receivingResource }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.tradeWithBank(socket.id, givingResource, receivingResource);
+    if (result.success) {
+      io.to(gameId).emit('bankTradeExecuted', {
+        game: game.getState(),
+        playerName: result.playerName,
+        gave: result.gave,
+        received: result.received
+      });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
   socket.on('discardCards', ({ gameId, cardsToDiscard }) => {
     const game = games.get(gameId);
     if (!game) return;

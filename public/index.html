@@ -87,7 +87,10 @@
               Build City (2Wh 3O)
             </button>
             <button id="tradeBtn" class="btn btn-action" disabled>
-              Trade
+              Trade with Players
+            </button>
+            <button id="bankTradeBtn" class="btn btn-action" disabled>
+              Trade with Bank (4:1)
             </button>
             <button id="endTurnBtn" class="btn btn-action" disabled>
               End Turn
@@ -174,6 +177,45 @@
         <div class="modal-footer">
           <button id="submitTradeBtn" class="btn btn-primary">Offer Trade</button>
           <button id="cancelTradeBtn" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bank Trade Modal -->
+    <div id="bankTradeModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Trade with Bank (4:1)</h2>
+          <span class="close-modal" id="closeBankTradeBtn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <p>Trade 4 of one resource for 1 of any other resource</p>
+          <div class="trade-section">
+            <h3>Give 4 of:</h3>
+            <select id="bankGiveResource">
+              <option value="">Select Resource</option>
+              <option value="wood">Wood</option>
+              <option value="brick">Brick</option>
+              <option value="sheep">Sheep</option>
+              <option value="wheat">Wheat</option>
+              <option value="ore">Ore</option>
+            </select>
+          </div>
+          <div class="trade-section">
+            <h3>Receive 1 of:</h3>
+            <select id="bankReceiveResource">
+              <option value="">Select Resource</option>
+              <option value="wood">Wood</option>
+              <option value="brick">Brick</option>
+              <option value="sheep">Sheep</option>
+              <option value="wheat">Wheat</option>
+              <option value="ore">Ore</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="submitBankTradeBtn" class="btn btn-primary">Trade with Bank</button>
+          <button id="cancelBankTradeBtn" class="btn btn-secondary">Cancel</button>
         </div>
       </div>
     </div>
