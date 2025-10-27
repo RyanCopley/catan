@@ -4,7 +4,7 @@ import { getTotalResourceCount, getResourceCards } from './playerManager';
 export function handleRobber(players: Player[]): void {
   players.forEach(player => {
     const totalCards = getTotalResourceCount(player);
-    if (totalCards > 7) {
+    if (totalCards >= 8) {
       player.mustDiscard = Math.floor(totalCards / 2);
     } else {
       player.mustDiscard = 0;
@@ -133,10 +133,10 @@ export function playKnight(
 
 export function calculateLargestArmy(players: Player[]): void {
   let largestPlayer: Player | null = null;
-  let largestSize = 2;
+  let largestSize = 3;
 
   for (const player of players) {
-    if (player.armySize > largestSize) {
+    if (player.armySize >= largestSize) {
       largestSize = player.armySize;
       largestPlayer = player;
     }

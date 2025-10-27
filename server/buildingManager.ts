@@ -14,6 +14,9 @@ export function buildSettlement(
 
   if (!v || v.building) return false;
 
+  // Check piece limit: max 5 settlements per player
+  if (player.settlements.length >= 5) return false;
+
   const adjacentVertices = getAdjacentVertices(v, board);
   if (adjacentVertices.some(av => av.building)) return false;
 
@@ -61,6 +64,9 @@ export function buildRoad(
 
   if (!e || e.road) return false;
 
+  // Check piece limit: max 15 roads per player
+  if (player.roads.length >= 15) return false;
+
   if (isSetup) {
     if (!lastSettlement) return false;
 
@@ -105,6 +111,9 @@ export function buildRoad(
 export function buildRoadFree(player: Player, board: Board, edge: Edge): boolean {
   if (!player.freeRoads || player.freeRoads <= 0) return false;
 
+  // Check piece limit: max 15 roads per player
+  if (player.roads.length >= 15) return false;
+
   const e = board.edges.find(ed =>
     (Math.abs(ed.v1.x - edge.v1.x) < 0.01 && Math.abs(ed.v1.y - edge.v1.y) < 0.01 &&
      Math.abs(ed.v2.x - edge.v2.x) < 0.01 && Math.abs(ed.v2.y - edge.v2.y) < 0.01) ||
@@ -143,6 +152,9 @@ export function buildCity(player: Player, board: Board, vertex: Coordinate): boo
 
   if (!v || v.building !== 'settlement' || v.playerId !== player.id) return false;
 
+  // Check piece limit: max 4 cities per player
+  if (player.cities.length >= 4) return false;
+
   const cost = { wheat: 2, ore: 3 };
   if (!hasResources(player, cost)) return false;
 
@@ -158,13 +170,14 @@ export function buildCity(player: Player, board: Board, vertex: Coordinate): boo
   return true;
 }
 
-export function calculateLongestRoad(players: Player[]): void {
+export function calculateLongestRoad(players: Player[], board: Board): void {
   let longestPlayer: Player | null = null;
-  let longestLength = 4;
+  let longestLength = 5;
 
   for (const player of players) {
-    if (player.roads.length > longestLength) {
-      longestLength = player.roads.length;
+    const longestPath = findLongestContinuousPath(player, board);
+    if (longestPath >= longestLength) {
+      longestLength = longestPath;
       longestPlayer = player;
     }
   }
@@ -180,6 +193,69 @@ export function calculateLongestRoad(players: Player[]): void {
     longestPlayer.longestRoad = true;
     longestPlayer.victoryPoints += 2;
   }
+}
+
+function findLongestContinuousPath(player: Player, board: Board): number {
+  if (player.roads.length === 0) return 0;
+
+  // Build adjacency map of road connections
+  const roadMap = new Map<string, Coordinate[]>();
+
+  player.roads.forEach(road => {
+    const v1Key = `${road.v1.x.toFixed(2)},${road.v1.y.toFixed(2)}`;
+    const v2Key = `${road.v2.x.toFixed(2)},${road.v2.y.toFixed(2)}`;
+
+    if (!roadMap.has(v1Key)) roadMap.set(v1Key, []);
+    if (!roadMap.has(v2Key)) roadMap.set(v2Key, []);
+
+    roadMap.get(v1Key)!.push(road.v2);
+    roadMap.get(v2Key)!.push(road.v1);
+  });
+
+  // Check which vertices are blocked by opponent settlements
+  const blockedVertices = new Set<string>();
+  board.vertices.forEach(vertex => {
+    if (vertex.building && vertex.playerId !== player.id) {
+      const key = `${vertex.x.toFixed(2)},${vertex.y.toFixed(2)}`;
+      blockedVertices.add(key);
+    }
+  });
+
+  // DFS to find longest path from each starting vertex
+  let maxLength = 0;
+
+  for (const startKey of roadMap.keys()) {
+    const visited = new Set<string>();
+    const length = dfsLongestPath(startKey, roadMap, blockedVertices, visited);
+    maxLength = Math.max(maxLength, length);
+  }
+
+  return maxLength;
+}
+
+function dfsLongestPath(
+  currentKey: string,
+  roadMap: Map<string, Coordinate[]>,
+  blockedVertices: Set<string>,
+  visited: Set<string>
+): number {
+  const neighbors = roadMap.get(currentKey) || [];
+  let maxPath = 0;
+
+  for (const neighbor of neighbors) {
+    const neighborKey = `${neighbor.x.toFixed(2)},${neighbor.y.toFixed(2)}`;
+    const edgeKey = [currentKey, neighborKey].sort().join('->');
+
+    // Skip if this edge was already visited or if neighbor is blocked
+    if (visited.has(edgeKey) || blockedVertices.has(neighborKey)) continue;
+
+    visited.add(edgeKey);
+    const pathLength = 1 + dfsLongestPath(neighborKey, roadMap, blockedVertices, visited);
+    maxPath = Math.max(maxPath, pathLength);
+    visited.delete(edgeKey);
+  }
+
+  return maxPath;
 }
 
 function getAdjacentVertices(vertex: Vertex, board: Board): Vertex[] {

@@ -176,7 +176,7 @@ export class Game {
 
     const success = buildRoad(player, this.board, edge, false);
     if (success) {
-      calculateLongestRoad(this.players);
+      calculateLongestRoad(this.players, this.board);
     }
     return success;
   }
@@ -190,7 +190,7 @@ export class Game {
 
     const success = buildRoadFree(player, this.board, edge);
     if (success) {
-      calculateLongestRoad(this.players);
+      calculateLongestRoad(this.players, this.board);
     }
     return success;
   }
