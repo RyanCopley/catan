@@ -1,20 +1,59 @@
 import { Server, Socket } from 'socket.io';
 import { Game } from './game';
+import { gameCache } from './cache';
+
+async function saveGameToCache(gameId: string, game: Game): Promise<void> {
+  await gameCache.saveGame(gameId, game);
+}
+
+async function loadGameFromCache(gameId: string, games: Map<string, Game>): Promise<Game | null> {
+  const cachedState = await gameCache.getGame(gameId);
+  if (!cachedState) return null;
+
+  // Reconstruct Game instance from cached state
+  const game = new Game(gameId);
+  game.players = cachedState.players;
+  game.board = cachedState.board;
+  game.currentPlayerIndex = cachedState.currentPlayerIndex;
+  game.phase = cachedState.phase;
+  game.turnPhase = cachedState.turnPhase;
+  game.diceRoll = cachedState.diceRoll;
+  game.setupRound = cachedState.setupRound;
+  game.setupSettlementPlaced = cachedState.setupSettlementPlaced;
+  game.setupRoadPlaced = cachedState.setupRoadPlaced;
+
+  // Add to in-memory map
+  games.set(gameId, game);
+  return game;
+}
 
 export function setupSocketHandlers(io: Server, socket: Socket, games: Map<string, Game>): void {
-  socket.on('createGame', ({ playerName }: { playerName: string }) => {
+  socket.on('createGame', async ({ playerName }: { playerName: string }) => {
     const gameId = generateGameId();
     const game = new Game(gameId);
     game.addPlayer(socket.id, playerName);
     games.set(gameId, game);
+
+    await saveGameToCache(gameId, game);
 
     socket.join(gameId);
     socket.emit('gameCreated', { gameId, playerId: socket.id, game: game.getState() });
     console.log(`Game ${gameId} created by ${playerName}`);
   });
 
-  socket.on('joinGame', ({ gameId, playerName }: { gameId: string; playerName: string }) => {
-    const game = games.get(gameId);
+  socket.on('joinGame', async ({ gameId, playerName }: { gameId: string; playerName: string }) => {
+    let game = games.get(gameId);
+
+    // If not in memory, try to load from cache
+    if (!game) {
+      console.log(`Game ${gameId} not in memory, checking cache...`);
+      const loadedGame = await loadGameFromCache(gameId, games);
+      if (loadedGame) {
+        console.log(`Game ${gameId} loaded from cache`);
+        game = loadedGame;
+      }
+    }
+
     if (!game) {
       socket.emit('error', { message: 'Game not found' });
       return;
@@ -28,6 +67,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
       socket.join(gameId);
       socket.emit('gameJoined', { gameId, playerId: socket.id, game: game.getState() });
       io.to(gameId).emit('playerReconnected', { game: game.getState(), playerName });
+      await saveGameToCache(gameId, game);
       return;
     }
 
@@ -40,99 +80,109 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     socket.join(gameId);
     socket.emit('gameJoined', { gameId, playerId: socket.id, game: game.getState() });
     io.to(gameId).emit('playerJoined', { game: game.getState() });
+    await saveGameToCache(gameId, game);
     console.log(`${playerName} joined game ${gameId}`);
   });
 
-  socket.on('startGame', ({ gameId }: { gameId: string }) => {
+  socket.on('startGame', async ({ gameId }: { gameId: string }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     game.start();
+    await saveGameToCache(gameId, game);
     io.to(gameId).emit('gameStarted', { game: game.getState() });
   });
 
-  socket.on('rollDice', ({ gameId }: { gameId: string }) => {
+  socket.on('rollDice', async ({ gameId }: { gameId: string }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.rollDice(socket.id);
+    await saveGameToCache(gameId, game);
     io.to(gameId).emit('diceRolled', { game: game.getState(), diceResult: result });
   });
 
-  socket.on('buildSettlement', ({ gameId, vertex }: { gameId: string; vertex: any }) => {
+  socket.on('buildSettlement', async ({ gameId, vertex }: { gameId: string; vertex: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const success = game.buildSettlement(socket.id, vertex);
     if (success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('settlementBuilt', { game: game.getState(), vertex, playerId: socket.id });
     } else {
       socket.emit('error', { message: 'Cannot build settlement there' });
     }
   });
 
-  socket.on('buildRoad', ({ gameId, edge }: { gameId: string; edge: any }) => {
+  socket.on('buildRoad', async ({ gameId, edge }: { gameId: string; edge: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const success = game.buildRoad(socket.id, edge);
     if (success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('roadBuilt', { game: game.getState(), edge, playerId: socket.id });
     } else {
       socket.emit('error', { message: 'Cannot build road there' });
     }
   });
 
-  socket.on('buildCity', ({ gameId, vertex }: { gameId: string; vertex: any }) => {
+  socket.on('buildCity', async ({ gameId, vertex }: { gameId: string; vertex: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const success = game.buildCity(socket.id, vertex);
     if (success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('cityBuilt', { game: game.getState(), vertex, playerId: socket.id });
     } else {
       socket.emit('error', { message: 'Cannot build city there' });
     }
   });
 
-  socket.on('endTurn', ({ gameId }: { gameId: string }) => {
+  socket.on('endTurn', async ({ gameId }: { gameId: string }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     game.endTurn(socket.id);
+    await saveGameToCache(gameId, game);
     io.to(gameId).emit('turnEnded', { game: game.getState() });
   });
 
-  socket.on('tradeOffer', ({ gameId, targetPlayerId, offering, requesting }: { gameId: string; targetPlayerId: string | null; offering: any; requesting: any }) => {
+  socket.on('tradeOffer', async ({ gameId, targetPlayerId, offering, requesting }: { gameId: string; targetPlayerId: string | null; offering: any; requesting: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const offer = game.createTradeOffer(socket.id, targetPlayerId, offering, requesting);
     if (offer) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('tradeOffered', { game: game.getState(), offer });
     } else {
       socket.emit('error', { message: 'Cannot create trade offer - insufficient resources' });
     }
   });
 
-  socket.on('tradeRespond', ({ gameId, offerId, response }: { gameId: string; offerId: number; response: 'accepted' | 'rejected' }) => {
+  socket.on('tradeRespond', async ({ gameId, offerId, response }: { gameId: string; offerId: number; response: 'accepted' | 'rejected' }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.respondToTrade(offerId, socket.id, response);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('tradeResponseUpdated', { game: game.getState(), offerId, playerId: socket.id, response });
     } else {
       socket.emit('error', { message: result.error });
     }
   });
 
-  socket.on('tradeConfirm', ({ gameId, offerId, acceptingPlayerId }: { gameId: string; offerId: number; acceptingPlayerId: string }) => {
+  socket.on('tradeConfirm', async ({ gameId, offerId, acceptingPlayerId }: { gameId: string; offerId: number; acceptingPlayerId: string }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.confirmTrade(offerId, socket.id, acceptingPlayerId);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('tradeExecuted', {
         game: game.getState(),
         offeringPlayer: result.offeringPlayer,
@@ -143,22 +193,24 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('tradeCancel', ({ gameId, offerId }: { gameId: string; offerId: number }) => {
+  socket.on('tradeCancel', async ({ gameId, offerId }: { gameId: string; offerId: number }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const success = game.cancelTradeOffer(offerId, socket.id);
     if (success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('tradeCancelled', { game: game.getState(), offerId });
     }
   });
 
-  socket.on('bankTrade', ({ gameId, givingResource, receivingResource, amount }: { gameId: string; givingResource: any; receivingResource: any; amount?: number }) => {
+  socket.on('bankTrade', async ({ gameId, givingResource, receivingResource, amount }: { gameId: string; givingResource: any; receivingResource: any; amount?: number }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.tradeWithBank(socket.id, givingResource, receivingResource, amount);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('bankTradeExecuted', {
         game: game.getState(),
         playerName: result.playerName,
@@ -172,24 +224,26 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('discardCards', ({ gameId, cardsToDiscard }: { gameId: string; cardsToDiscard: any }) => {
+  socket.on('discardCards', async ({ gameId, cardsToDiscard }: { gameId: string; cardsToDiscard: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.discardCards(socket.id, cardsToDiscard);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('cardsDiscarded', { game: game.getState(), playerId: socket.id });
     } else {
       socket.emit('error', { message: result.error });
     }
   });
 
-  socket.on('moveRobber', ({ gameId, hexCoords }: { gameId: string; hexCoords: any }) => {
+  socket.on('moveRobber', async ({ gameId, hexCoords }: { gameId: string; hexCoords: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.moveRobber(socket.id, hexCoords);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('robberMoved', {
         game: game.getState(),
         hexCoords,
@@ -200,12 +254,13 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('stealCard', ({ gameId, targetPlayerId }: { gameId: string; targetPlayerId: string | null }) => {
+  socket.on('stealCard', async ({ gameId, targetPlayerId }: { gameId: string; targetPlayerId: string | null }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.stealCard(socket.id, targetPlayerId);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('cardStolen', {
         game: game.getState(),
         robberId: socket.id,
@@ -217,12 +272,13 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('buyDevelopmentCard', ({ gameId }: { gameId: string }) => {
+  socket.on('buyDevelopmentCard', async ({ gameId }: { gameId: string }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.buyDevelopmentCard(socket.id);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       const player = game.players.find(p => p.id === socket.id);
       socket.emit('developmentCardBought', {
         game: game.getState(),
@@ -237,12 +293,13 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('playKnight', ({ gameId, hexCoords }: { gameId: string; hexCoords: any }) => {
+  socket.on('playKnight', async ({ gameId, hexCoords }: { gameId: string; hexCoords: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.playKnight(socket.id, hexCoords);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('knightPlayed', {
         game: game.getState(),
         playerId: socket.id,
@@ -254,12 +311,13 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('playYearOfPlenty', ({ gameId, resource1, resource2 }: { gameId: string; resource1: any; resource2: any }) => {
+  socket.on('playYearOfPlenty', async ({ gameId, resource1, resource2 }: { gameId: string; resource1: any; resource2: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.playYearOfPlenty(socket.id, resource1, resource2);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       const player = game.players.find(p => p.id === socket.id);
       io.to(gameId).emit('yearOfPlentyPlayed', {
         game: game.getState(),
@@ -272,12 +330,13 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('playMonopoly', ({ gameId, resource }: { gameId: string; resource: any }) => {
+  socket.on('playMonopoly', async ({ gameId, resource }: { gameId: string; resource: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.playMonopoly(socket.id, resource);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       const player = game.players.find(p => p.id === socket.id);
       io.to(gameId).emit('monopolyPlayed', {
         game: game.getState(),
@@ -290,12 +349,13 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('playRoadBuilding', ({ gameId }: { gameId: string }) => {
+  socket.on('playRoadBuilding', async ({ gameId }: { gameId: string }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const result = game.playRoadBuilding(socket.id);
     if (result.success) {
+      await saveGameToCache(gameId, game);
       const player = game.players.find(p => p.id === socket.id);
       io.to(gameId).emit('roadBuildingPlayed', {
         game: game.getState(),
@@ -306,12 +366,13 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('buildRoadFree', ({ gameId, edge }: { gameId: string; edge: any }) => {
+  socket.on('buildRoadFree', async ({ gameId, edge }: { gameId: string; edge: any }) => {
     const game = games.get(gameId);
     if (!game) return;
 
     const success = game.buildRoadFree(socket.id, edge);
     if (success) {
+      await saveGameToCache(gameId, game);
       io.to(gameId).emit('roadBuiltFree', { game: game.getState(), edge, playerId: socket.id });
     } else {
       socket.emit('error', { message: 'Cannot build road there' });
