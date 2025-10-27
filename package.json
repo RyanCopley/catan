@@ -2,9 +2,12 @@
   "name": "catan",
   "version": "1.0.0",
   "description": "Web-based multiplayer Catan game with Node.js backend",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node server/index.js",
+    "start": "node dist/index.js",
+    "dev": "ts-node server/index.ts",
+    "build": "tsc",
+    "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,5 +18,12 @@
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }
