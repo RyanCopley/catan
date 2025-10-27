@@ -3,7 +3,7 @@ import {
   ResourceType, GamePhase, TurnPhase, Resources
 } from './types';
 import { generateBoard } from './boardGenerator';
-import { createPlayer } from './playerManager';
+import { createPlayer, getVictoryPoints } from './playerManager';
 import { TradeManager, tradeWithBank } from './tradeManager';
 import { DevelopmentCardManager, playYearOfPlenty, playMonopoly, playRoadBuilding, moveNewCardsToPlayable } from './developmentCardManager';
 import { buildSettlement, buildRoad, buildCity, buildRoadFree, calculateLongestRoad } from './buildingManager';
@@ -393,7 +393,7 @@ export class Game {
       this.diceRoll = null;
     }
 
-    const winner = this.players.find(p => p.victoryPoints >= 10);
+    const winner = this.players.find(p => getVictoryPoints(p) >= 10);
     if (winner) {
       this.phase = 'finished';
     }
@@ -423,9 +423,15 @@ export class Game {
   }
 
   getState(): GameState {
+    // Compute victory points for all players before returning state
+    const playersWithVP = this.players.map(player => ({
+      ...player,
+      victoryPoints: getVictoryPoints(player)
+    }));
+
     return {
       id: this.id,
-      players: this.players,
+      players: playersWithVP,
       board: this.board,
       currentPlayerIndex: this.currentPlayerIndex,
       phase: this.phase,

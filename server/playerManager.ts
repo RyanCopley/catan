@@ -55,3 +55,28 @@ export function getResourceCards(player: Player): string[] {
   }
   return cards;
 }
+
+export function getVictoryPoints(player: Player): number {
+  let points = 0;
+
+  // Points from settlements (1 point each)
+  points += player.settlements.length;
+
+  // Points from cities (2 points each)
+  points += player.cities.length * 2;
+
+  // Points from victory point development cards
+  points += player.victoryPointCards;
+
+  // Bonus points from longest road (2 points)
+  if (player.longestRoad) {
+    points += 2;
+  }
+
+  // Bonus points from largest army (2 points)
+  if (player.largestArmy) {
+    points += 2;
+  }
+
+  return points;
+}

@@ -142,15 +142,8 @@ export function calculateLargestArmy(players: Player[]): void {
     }
   }
 
+  // Update flags only - victory points will be computed via getVictoryPoints()
   for (const player of players) {
-    if (player.largestArmy && player !== largestPlayer) {
-      player.largestArmy = false;
-      player.victoryPoints -= 2;
-    }
-  }
-
-  if (largestPlayer && !largestPlayer.largestArmy) {
-    largestPlayer.largestArmy = true;
-    largestPlayer.victoryPoints += 2;
+    player.largestArmy = (player === largestPlayer);
   }
 }

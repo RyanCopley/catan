@@ -24,7 +24,6 @@ export function buildSettlement(
     v.building = 'settlement';
     v.playerId = player.id;
     player.settlements.push(vertex);
-    player.victoryPoints++;
 
     if (setupRound === 2) {
       giveSetupResources(v, player, board);
@@ -43,7 +42,6 @@ export function buildSettlement(
   v.building = 'settlement';
   v.playerId = player.id;
   player.settlements.push(vertex);
-  player.victoryPoints++;
 
   return true;
 }
@@ -165,7 +163,6 @@ export function buildCity(player: Player, board: Board, vertex: Coordinate): boo
   player.settlements = player.settlements.filter(s =>
     Math.abs(s.x - vertex.x) >= 0.01 || Math.abs(s.y - vertex.y) >= 0.01
   );
-  player.victoryPoints++;
 
   return true;
 }
@@ -182,16 +179,9 @@ export function calculateLongestRoad(players: Player[], board: Board): void {
     }
   }
 
+  // Update flags only - victory points will be computed via getVictoryPoints()
   for (const player of players) {
-    if (player.longestRoad && player !== longestPlayer) {
-      player.longestRoad = false;
-      player.victoryPoints -= 2;
-    }
-  }
-
-  if (longestPlayer && !longestPlayer.longestRoad) {
-    longestPlayer.longestRoad = true;
-    longestPlayer.victoryPoints += 2;
+    player.longestRoad = (player === longestPlayer);
   }
 }
 

@@ -41,7 +41,6 @@ export class DevelopmentCardManager {
     player.newDevelopmentCards.push(card);
 
     if (card === 'victoryPoint') {
-      player.victoryPoints++;
       player.victoryPointCards++;
       player.newDevelopmentCards = player.newDevelopmentCards.filter(c => c !== card);
     }
