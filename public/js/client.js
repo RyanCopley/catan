@@ -92,6 +92,61 @@ class GameClient {
       const result = data.diceResult;
       document.getElementById('diceResult').textContent = `${result.die1} + ${result.die2} = ${result.total}`;
       this.renderer.addLogMessage(`Dice rolled: ${result.total}`);
+
+      // Check if we need to discard
+      const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+      if (myPlayer && myPlayer.mustDiscard > 0) {
+        this.showDiscardModal(myPlayer.mustDiscard, myPlayer.resources);
+      }
+
+      this.updateGameUI();
+    });
+
+    this.socket.on('cardsDiscarded', (data) => {
+      this.gameState = data.game;
+      const player = this.gameState.players.find(p => p.id === data.playerId);
+      this.renderer.addLogMessage(`${player.name} discarded cards`);
+      this.updateGameUI();
+    });
+
+    this.socket.on('robberMoved', (data) => {
+      this.gameState = data.game;
+      this.renderer.setBoard(this.gameState.board);
+      this.renderer.clearBuildMode();
+
+      // If I'm the current player and there are stealable targets, show steal modal
+      const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
+      if (currentPlayer.id === this.playerId && data.stealableTargets.length > 0) {
+        this.showStealModal(data.stealableTargets);
+      } else if (currentPlayer.id === this.playerId && data.stealableTargets.length === 0) {
+        // No one to steal from, auto-complete by calling stealCard with null
+        this.renderer.addLogMessage('Robber moved, but no one to steal from');
+        this.socket.emit('stealCard', { gameId: this.gameId, targetPlayerId: null });
+      } else {
+        this.renderer.addLogMessage(`${currentPlayer.name} moved the robber`);
+      }
+
+      this.updateGameUI();
+    });
+
+    this.socket.on('cardStolen', (data) => {
+      this.gameState = data.game;
+      const robber = this.gameState.players.find(p => p.id === data.robberId);
+      const target = this.gameState.players.find(p => p.id === data.targetPlayerId);
+
+      if (data.stolenResource) {
+        if (data.robberId === this.playerId) {
+          this.renderer.addLogMessage(`You stole a ${data.stolenResource} from ${target.name}`);
+        } else if (data.targetPlayerId === this.playerId) {
+          this.renderer.addLogMessage(`${robber.name} stole a ${data.stolenResource} from you`);
+        } else {
+          this.renderer.addLogMessage(`${robber.name} stole a card from ${target.name}`);
+        }
+      } else if (target) {
+        this.renderer.addLogMessage(`${robber.name} couldn't steal from ${target.name} (no cards)`);
+      }
+
+      this.closeStealModal();
       this.updateGameUI();
     });
 
@@ -254,6 +309,11 @@ class GameClient {
         this.closeTradeModal();
       }
     });
+
+    // Discard modal
+    document.getElementById('submitDiscardBtn').addEventListener('click', () => {
+      this.submitDiscard();
+    });
   }
 
   handleVertexClick(vertex) {
@@ -267,6 +327,22 @@ class GameClient {
   handleEdgeClick(edge) {
     if (this.renderer.buildMode === 'road') {
       this.socket.emit('buildRoad', { gameId: this.gameId, edge });
+    }
+  }
+
+  handleHexClick(hex) {
+    // Only allow hex clicking during robber phase
+    if (this.gameState.turnPhase === 'robber') {
+      const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
+      if (currentPlayer.id === this.playerId) {
+        // Check if all players have discarded
+        const allDiscarded = this.gameState.players.every(p => !p.mustDiscard || p.mustDiscard === 0);
+        if (allDiscarded) {
+          this.socket.emit('moveRobber', { gameId: this.gameId, hexCoords: { q: hex.q, r: hex.r } });
+        } else {
+          this.renderer.addLogMessage('Waiting for all players to discard');
+        }
+      }
     }
   }
 
@@ -304,6 +380,76 @@ class GameClient {
 
   closeTradeModal() {
     const modal = document.getElementById('tradeModal');
+    modal.classList.remove('active');
+  }
+
+  showDiscardModal(mustDiscard, resources) {
+    const modal = document.getElementById('discardModal');
+    modal.classList.add('active');
+
+    document.getElementById('discardAmount').textContent = mustDiscard;
+
+    // Reset inputs and set max values
+    ['wood', 'brick', 'sheep', 'wheat', 'ore'].forEach(resource => {
+      const input = document.getElementById(`discard-${resource}`);
+      input.value = 0;
+      input.max = resources[resource];
+    });
+  }
+
+  closeDiscardModal() {
+    const modal = document.getElementById('discardModal');
+    modal.classList.remove('active');
+  }
+
+  submitDiscard() {
+    const cardsToDiscard = {
+      wood: parseInt(document.getElementById('discard-wood').value) || 0,
+      brick: parseInt(document.getElementById('discard-brick').value) || 0,
+      sheep: parseInt(document.getElementById('discard-sheep').value) || 0,
+      wheat: parseInt(document.getElementById('discard-wheat').value) || 0,
+      ore: parseInt(document.getElementById('discard-ore').value) || 0
+    };
+
+    const totalDiscarded = Object.values(cardsToDiscard).reduce((a, b) => a + b, 0);
+    const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+
+    if (totalDiscarded !== myPlayer.mustDiscard) {
+      alert(`You must discard exactly ${myPlayer.mustDiscard} cards`);
+      return;
+    }
+
+    this.socket.emit('discardCards', { gameId: this.gameId, cardsToDiscard });
+    this.closeDiscardModal();
+  }
+
+  showStealModal(stealableTargets) {
+    const modal = document.getElementById('stealModal');
+    modal.classList.add('active');
+
+    const targetsDiv = document.getElementById('stealTargets');
+    targetsDiv.innerHTML = '';
+
+    stealableTargets.forEach(targetId => {
+      const target = this.gameState.players.find(p => p.id === targetId);
+      if (!target) return;
+
+      const targetCard = Object.values(target.resources).reduce((a, b) => a + b, 0);
+
+      const button = document.createElement('button');
+      button.className = 'btn btn-primary';
+      button.textContent = `${target.name} (${targetCard} cards)`;
+      button.style.display = 'block';
+      button.style.margin = '10px auto';
+      button.onclick = () => {
+        this.socket.emit('stealCard', { gameId: this.gameId, targetPlayerId: targetId });
+      };
+      targetsDiv.appendChild(button);
+    });
+  }
+
+  closeStealModal() {
+    const modal = document.getElementById('stealModal');
     modal.classList.remove('active');
   }
 
@@ -685,7 +831,23 @@ class GameClient {
     if (this.gameState.phase === 'setup') {
       phaseText = `Setup Round ${this.gameState.setupRound} - Place Settlement & Road`;
     } else if (this.gameState.phase === 'playing') {
-      phaseText = this.gameState.turnPhase === 'roll' ? 'Roll Dice' : 'Build & Trade';
+      if (this.gameState.turnPhase === 'roll') {
+        phaseText = 'Roll Dice';
+      } else if (this.gameState.turnPhase === 'robber') {
+        const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+        if (myPlayer && myPlayer.mustDiscard > 0) {
+          phaseText = `Discard ${myPlayer.mustDiscard} Cards`;
+        } else {
+          const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
+          if (currentPlayer.id === this.playerId) {
+            phaseText = 'Move Robber & Steal Card';
+          } else {
+            phaseText = 'Waiting for Robber';
+          }
+        }
+      } else {
+        phaseText = 'Build & Trade';
+      }
     }
     document.getElementById('phaseText').textContent = phaseText;
 

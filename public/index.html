@@ -183,6 +183,56 @@
       <h3>Active Trade Offers</h3>
       <div id="tradeOffersList"></div>
     </div>
+
+    <!-- Discard Modal -->
+    <div id="discardModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Discard Cards</h2>
+        </div>
+        <div class="modal-body">
+          <p id="discardMessage">You must discard <span id="discardAmount">0</span> cards.</p>
+          <div class="resource-selectors" id="discardResources">
+            <div class="resource-selector">
+              <label>Wood:</label>
+              <input type="number" id="discard-wood" min="0" value="0">
+            </div>
+            <div class="resource-selector">
+              <label>Brick:</label>
+              <input type="number" id="discard-brick" min="0" value="0">
+            </div>
+            <div class="resource-selector">
+              <label>Sheep:</label>
+              <input type="number" id="discard-sheep" min="0" value="0">
+            </div>
+            <div class="resource-selector">
+              <label>Wheat:</label>
+              <input type="number" id="discard-wheat" min="0" value="0">
+            </div>
+            <div class="resource-selector">
+              <label>Ore:</label>
+              <input type="number" id="discard-ore" min="0" value="0">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="submitDiscardBtn" class="btn btn-primary">Discard Cards</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Steal Card Modal -->
+    <div id="stealModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Steal a Card</h2>
+        </div>
+        <div class="modal-body">
+          <p>Choose a player to steal from:</p>
+          <div id="stealTargets"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

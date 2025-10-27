@@ -220,11 +220,13 @@ class Game {
     if (this.diceRoll === 7) {
       // Robber logic - players with >7 cards discard half
       this.handleRobber();
+      // Don't set turnPhase to 'build' yet - wait for robber to be moved
+      this.turnPhase = 'robber';
     } else {
       this.distributeResources(this.diceRoll);
+      this.turnPhase = 'build';
     }
 
-    this.turnPhase = 'build';
     return { die1, die2, total: this.diceRoll };
   }
 
@@ -262,8 +264,132 @@ class Game {
       const totalCards = Object.values(player.resources).reduce((a, b) => a + b, 0);
       if (totalCards > 7) {
         player.mustDiscard = Math.floor(totalCards / 2);
+      } else {
+        player.mustDiscard = 0;
       }
     });
+  }
+
+  discardCards(playerId, cardsToDiscard) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player || !player.mustDiscard) return { success: false, error: 'No discard required' };
+
+    // Validate the discard amount
+    const totalDiscarded = Object.values(cardsToDiscard).reduce((a, b) => a + b, 0);
+    if (totalDiscarded !== player.mustDiscard) {
+      return { success: false, error: `Must discard exactly ${player.mustDiscard} cards` };
+    }
+
+    // Validate player has the cards
+    for (const [resource, amount] of Object.entries(cardsToDiscard)) {
+      if (player.resources[resource] < amount) {
+        return { success: false, error: `Not enough ${resource}` };
+      }
+    }
+
+    // Discard the cards
+    for (const [resource, amount] of Object.entries(cardsToDiscard)) {
+      player.resources[resource] -= amount;
+    }
+
+    player.mustDiscard = 0;
+    return { success: true };
+  }
+
+  checkAllDiscarded() {
+    // Check if all players have discarded
+    return this.players.every(p => !p.mustDiscard || p.mustDiscard === 0);
+  }
+
+  moveRobber(playerId, hexCoords) {
+    // Only current player can move robber
+    if (this.players[this.currentPlayerIndex].id !== playerId) {
+      return { success: false, error: 'Not your turn' };
+    }
+
+    if (this.turnPhase !== 'robber') {
+      return { success: false, error: 'Cannot move robber now' };
+    }
+
+    // Check if all players have discarded
+    if (!this.checkAllDiscarded()) {
+      return { success: false, error: 'Waiting for players to discard' };
+    }
+
+    // Find the hex
+    const hex = this.board.hexes.find(h => h.q === hexCoords.q && h.r === hexCoords.r);
+    if (!hex) {
+      return { success: false, error: 'Invalid hex' };
+    }
+
+    // Cannot place robber on the same hex
+    if (hex.hasRobber) {
+      return { success: false, error: 'Robber is already there' };
+    }
+
+    // Remove robber from current hex
+    this.board.hexes.forEach(h => h.hasRobber = false);
+
+    // Place robber on new hex
+    hex.hasRobber = true;
+    this.board.robber = hex;
+
+    // Get players with settlements/cities on this hex
+    const playersOnHex = this.getPlayersOnHex(hex);
+    const stealableTargets = playersOnHex.filter(p => p !== playerId);
+
+    return { success: true, stealableTargets };
+  }
+
+  getPlayersOnHex(hex) {
+    const playerIds = new Set();
+
+    this.board.vertices.forEach(vertex => {
+      if (vertex.building && vertex.adjacentHexes.some(h => h.q === hex.q && h.r === hex.r)) {
+        playerIds.add(vertex.playerId);
+      }
+    });
+
+    return Array.from(playerIds);
+  }
+
+  stealCard(robberId, targetPlayerId) {
+    if (!targetPlayerId) {
+      // No one to steal from
+      this.turnPhase = 'build';
+      return { success: true, stolenResource: null };
+    }
+
+    const robber = this.players.find(p => p.id === robberId);
+    const target = this.players.find(p => p.id === targetPlayerId);
+
+    if (!robber || !target) {
+      return { success: false, error: 'Player not found' };
+    }
+
+    // Get target's resources
+    const availableResources = [];
+    for (const [resource, amount] of Object.entries(target.resources)) {
+      for (let i = 0; i < amount; i++) {
+        availableResources.push(resource);
+      }
+    }
+
+    if (availableResources.length === 0) {
+      // Target has no cards
+      this.turnPhase = 'build';
+      return { success: true, stolenResource: null };
+    }
+
+    // Steal a random card
+    const randomIndex = Math.floor(Math.random() * availableResources.length);
+    const stolenResource = availableResources[randomIndex];
+
+    target.resources[stolenResource]--;
+    robber.resources[stolenResource]++;
+
+    this.turnPhase = 'build';
+    return { success: true, stolenResource };
   }
 
   buildSettlement(playerId, vertex) {

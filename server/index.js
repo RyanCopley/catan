@@ -172,6 +172,51 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('discardCards', ({ gameId, cardsToDiscard }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.discardCards(socket.id, cardsToDiscard);
+    if (result.success) {
+      io.to(gameId).emit('cardsDiscarded', { game: game.getState(), playerId: socket.id });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  socket.on('moveRobber', ({ gameId, hexCoords }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.moveRobber(socket.id, hexCoords);
+    if (result.success) {
+      io.to(gameId).emit('robberMoved', {
+        game: game.getState(),
+        hexCoords,
+        stealableTargets: result.stealableTargets
+      });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  socket.on('stealCard', ({ gameId, targetPlayerId }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.stealCard(socket.id, targetPlayerId);
+    if (result.success) {
+      io.to(gameId).emit('cardStolen', {
+        game: game.getState(),
+        robberId: socket.id,
+        targetPlayerId,
+        stolenResource: result.stolenResource
+      });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
     // Handle player disconnection

@@ -58,48 +58,92 @@ class BoardRenderer {
   }
 
   handleMouseMove(e) {
-    if (!this.board || !this.buildMode) return;
+    if (!this.board) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    if (this.buildMode === 'settlement' || this.buildMode === 'city') {
-      // Find nearest vertex
-      let minDist = 20;
-      this.hoveredVertex = null;
+    // Check if we're in robber mode
+    const gameClient = window.gameClient;
+    const isRobberMode = gameClient && gameClient.gameState && gameClient.gameState.turnPhase === 'robber';
 
-      this.board.vertices.forEach(vertex => {
-        const screenPos = this.hexToScreen(vertex.x, vertex.y);
-        const dist = Math.sqrt((x - screenPos.x) ** 2 + (y - screenPos.y) ** 2);
-        if (dist < minDist) {
-          minDist = dist;
-          this.hoveredVertex = vertex;
+    if (isRobberMode) {
+      // Find hovered hex
+      this.hoveredHex = null;
+      this.board.hexes.forEach(hex => {
+        if (this.isPointInHex(x, y, hex)) {
+          this.hoveredHex = hex;
         }
       });
-
       this.render();
-    } else if (this.buildMode === 'road') {
-      // Find nearest edge
-      let minDist = 15;
-      this.hoveredEdge = null;
+    } else if (this.buildMode) {
+      if (this.buildMode === 'settlement' || this.buildMode === 'city') {
+        // Find nearest vertex
+        let minDist = 20;
+        this.hoveredVertex = null;
 
-      this.board.edges.forEach(edge => {
-        const p1 = this.hexToScreen(edge.v1.x, edge.v1.y);
-        const p2 = this.hexToScreen(edge.v2.x, edge.v2.y);
-        const dist = this.pointToLineDistance(x, y, p1.x, p1.y, p2.x, p2.y);
-        if (dist < minDist) {
-          minDist = dist;
-          this.hoveredEdge = edge;
-        }
-      });
+        this.board.vertices.forEach(vertex => {
+          const screenPos = this.hexToScreen(vertex.x, vertex.y);
+          const dist = Math.sqrt((x - screenPos.x) ** 2 + (y - screenPos.y) ** 2);
+          if (dist < minDist) {
+            minDist = dist;
+            this.hoveredVertex = vertex;
+          }
+        });
 
-      this.render();
+        this.render();
+      } else if (this.buildMode === 'road') {
+        // Find nearest edge
+        let minDist = 15;
+        this.hoveredEdge = null;
+
+        this.board.edges.forEach(edge => {
+          const p1 = this.hexToScreen(edge.v1.x, edge.v1.y);
+          const p2 = this.hexToScreen(edge.v2.x, edge.v2.y);
+          const dist = this.pointToLineDistance(x, y, p1.x, p1.y, p2.x, p2.y);
+          if (dist < minDist) {
+            minDist = dist;
+            this.hoveredEdge = edge;
+          }
+        });
+
+        this.render();
+      }
     }
   }
 
+  isPointInHex(px, py, hex) {
+    // Convert axial coordinates to screen coordinates
+    const size = this.scale;
+    const x = size * (3/2 * hex.q);
+    const y = size * (Math.sqrt(3)/2 * hex.q + Math.sqrt(3) * hex.r);
+    const centerX = this.offsetX + x;
+    const centerY = this.offsetY + y;
+
+    // Check if point is within hexagon using distance from center
+    const dx = px - centerX;
+    const dy = py - centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    return dist < size * 0.9; // Slightly smaller than actual hex for better UX
+  }
+
   handleClick(e) {
-    if (!this.board || !this.buildMode) return;
+    if (!this.board) return;
+
+    const gameClient = window.gameClient;
+    const isRobberMode = gameClient && gameClient.gameState && gameClient.gameState.turnPhase === 'robber';
+
+    if (isRobberMode && this.hoveredHex) {
+      // Handle hex click for robber movement
+      if (gameClient) {
+        gameClient.handleHexClick(this.hoveredHex);
+      }
+      return;
+    }
+
+    if (!this.buildMode) return;
 
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -182,6 +226,31 @@ class BoardRenderer {
     });
 
     // Draw hovered elements
+    if (this.hoveredHex) {
+      // Highlight hovered hex for robber placement
+      const size = this.scale;
+      const x = size * (3/2 * this.hoveredHex.q);
+      const y = size * (Math.sqrt(3)/2 * this.hoveredHex.q + Math.sqrt(3) * this.hoveredHex.r);
+      const centerX = this.offsetX + x;
+      const centerY = this.offsetY + y;
+
+      this.ctx.strokeStyle = this.hoveredHex.hasRobber ? '#ff0000' : '#ffff00';
+      this.ctx.lineWidth = 4;
+      this.ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 3 * i;
+        const vx = centerX + size * Math.cos(angle);
+        const vy = centerY + size * Math.sin(angle);
+        if (i === 0) {
+          this.ctx.moveTo(vx, vy);
+        } else {
+          this.ctx.lineTo(vx, vy);
+        }
+      }
+      this.ctx.closePath();
+      this.ctx.stroke();
+    }
+
     if (this.hoveredVertex) {
       const pos = this.hexToScreen(this.hoveredVertex.x, this.hoveredVertex.y);
       this.ctx.strokeStyle = '#ffff00';
