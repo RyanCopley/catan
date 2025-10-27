@@ -222,7 +222,8 @@ class GameClient {
     this.socket.on('bankTradeExecuted', (data) => {
       this.gameState = data.game;
       this.updateGameUI();
-      this.renderer.addLogMessage(`${data.playerName} traded 4 ${data.gave} for 1 ${data.received} with the bank`);
+      const tradeMsg = `${data.playerName} traded ${data.gaveAmount} ${data.gave} for 1 ${data.received} with the bank (${data.tradeRate})`;
+      this.renderer.addLogMessage(tradeMsg);
     });
 
     this.socket.on('error', (data) => {
@@ -421,20 +422,96 @@ class GameClient {
     document.getElementById('bankGiveResource').value = '';
     document.getElementById('bankReceiveResource').value = '';
 
-    // Update resource availability in the give dropdown
+    // Update modal title to show available trade rates
+    const modalHeader = modal.querySelector('.modal-header h2');
     const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+
+    // Get player's ports from server state
+    let tradeRatesText = 'Trade with Bank';
     if (myPlayer) {
+      // Check for ports - we'll get this info from the server
+      const has3to1 = this.hasPort(myPlayer.id, '3:1');
+      const specificPorts = this.getSpecificPorts(myPlayer.id);
+
+      if (has3to1 || specificPorts.length > 0) {
+        tradeRatesText = 'Trade with Bank';
+        if (has3to1) {
+          tradeRatesText += ' (3:1 available)';
+        }
+        if (specificPorts.length > 0) {
+          const portList = specificPorts.map(p => `${p}:2:1`).join(', ');
+          tradeRatesText += ` (2:1: ${specificPorts.join(', ')})`;
+        }
+      }
+
+      // Update resource availability in the give dropdown
       const giveSelect = document.getElementById('bankGiveResource');
       const options = giveSelect.querySelectorAll('option');
       options.forEach(option => {
         if (option.value) {
           const resource = option.value;
           const count = myPlayer.resources[resource];
-          option.textContent = `${resource.charAt(0).toUpperCase() + resource.slice(1)} (${count})`;
-          option.disabled = count < 4;
+          const tradeRate = this.getBestTradeRate(myPlayer.id, resource);
+          option.textContent = `${resource.charAt(0).toUpperCase() + resource.slice(1)} (${count}) [${tradeRate}:1]`;
+          option.disabled = count < tradeRate;
         }
       });
     }
+
+    modalHeader.textContent = tradeRatesText;
+  }
+
+  hasPort(playerId, portType) {
+    if (!this.gameState.board || !this.gameState.board.ports) return false;
+
+    return this.gameState.board.ports.some(port => {
+      if (port.type !== portType) return false;
+
+      return port.vertices.some(portVertex => {
+        const vertex = this.gameState.board.vertices.find(v =>
+          Math.abs(v.x - portVertex.x) < 0.01 && Math.abs(v.y - portVertex.y) < 0.01
+        );
+        return vertex && vertex.playerId === playerId && vertex.building;
+      });
+    });
+  }
+
+  getSpecificPorts(playerId) {
+    if (!this.gameState.board || !this.gameState.board.ports) return [];
+
+    const resources = [];
+    this.gameState.board.ports.forEach(port => {
+      if (port.type === '2:1') {
+        const hasAccess = port.vertices.some(portVertex => {
+          const vertex = this.gameState.board.vertices.find(v =>
+            Math.abs(v.x - portVertex.x) < 0.01 && Math.abs(v.y - portVertex.y) < 0.01
+          );
+          return vertex && vertex.playerId === playerId && vertex.building;
+        });
+
+        if (hasAccess && !resources.includes(port.resource)) {
+          resources.push(port.resource);
+        }
+      }
+    });
+
+    return resources;
+  }
+
+  getBestTradeRate(playerId, resource) {
+    // Check for 2:1 specific port
+    const specificPorts = this.getSpecificPorts(playerId);
+    if (specificPorts.includes(resource)) {
+      return 2;
+    }
+
+    // Check for 3:1 generic port
+    if (this.hasPort(playerId, '3:1')) {
+      return 3;
+    }
+
+    // Default 4:1
+    return 4;
   }
 
   closeBankTradeModal() {
@@ -457,15 +534,18 @@ class GameClient {
     }
 
     const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
-    if (!myPlayer || myPlayer.resources[givingResource] < 4) {
-      alert(`You need at least 4 ${givingResource} to trade with the bank`);
+    const tradeRate = this.getBestTradeRate(myPlayer.id, givingResource);
+
+    if (!myPlayer || myPlayer.resources[givingResource] < tradeRate) {
+      alert(`You need at least ${tradeRate} ${givingResource} to trade with the bank`);
       return;
     }
 
     this.socket.emit('bankTrade', {
       gameId: this.gameId,
       givingResource,
-      receivingResource
+      receivingResource,
+      amount: tradeRate
     });
 
     this.closeBankTradeModal();

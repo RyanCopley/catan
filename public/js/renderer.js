@@ -215,6 +215,13 @@ class BoardRenderer {
       this.drawHex(hex);
     });
 
+    // Draw ports
+    if (this.board.ports) {
+      this.board.ports.forEach(port => {
+        this.drawPort(port);
+      });
+    }
+
     // Draw edges (roads)
     this.board.edges.forEach(edge => {
       this.drawEdge(edge);
@@ -342,6 +349,93 @@ class BoardRenderer {
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
       this.ctx.fillText('R', centerX, centerY);
+    }
+  }
+
+  drawPort(port) {
+    // Draw port between two vertices
+    const v1 = this.hexToScreen(port.vertices[0].x, port.vertices[0].y);
+    const v2 = this.hexToScreen(port.vertices[1].x, port.vertices[1].y);
+
+    // Calculate midpoint between the two vertices
+    const midX = (v1.x + v2.x) / 2;
+    const midY = (v1.y + v2.y) / 2;
+
+    // Get the hex center in screen coordinates to determine outward direction
+    // Using the same formula as in drawHex
+    const size = this.scale;
+    const x = size * (3/2 * port.hex.q);
+    const y = size * (Math.sqrt(3)/2 * port.hex.q + Math.sqrt(3) * port.hex.r);
+    const hexCenterX = this.offsetX + x;
+    const hexCenterY = this.offsetY + y;
+
+    // Calculate direction from hex center to midpoint (pointing outward)
+    const toMidX = midX - hexCenterX;
+    const toMidY = midY - hexCenterY;
+    const toMidLength = Math.sqrt(toMidX * toMidX + toMidY * toMidY);
+
+    // Normalize the direction
+    const dirX = toMidX / toMidLength;
+    const dirY = toMidY / toMidLength;
+
+    // Offset the port icon outward from the board
+    const offset = 42;
+    const portX = midX + dirX * offset;
+    const portY = midY + dirY * offset;
+
+    // Draw connection lines to vertices FIRST (so they appear behind the port chip)
+    this.ctx.strokeStyle = '#f5deb3';
+    this.ctx.lineWidth = 2;
+    this.ctx.setLineDash([3, 3]);
+    this.ctx.beginPath();
+    this.ctx.moveTo(v1.x, v1.y);
+    this.ctx.lineTo(portX, portY);
+    this.ctx.moveTo(v2.x, v2.y);
+    this.ctx.lineTo(portX, portY);
+    this.ctx.stroke();
+    this.ctx.setLineDash([]);
+
+    // Draw port background (on top of the lines)
+    this.ctx.fillStyle = '#f5deb3';
+    this.ctx.strokeStyle = '#8b7355';
+    this.ctx.lineWidth = 2;
+    this.ctx.beginPath();
+    this.ctx.arc(portX, portY, 18, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    // Draw port text
+    this.ctx.fillStyle = '#000';
+    this.ctx.font = 'bold 11px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+
+    if (port.type === '3:1') {
+      this.ctx.fillText('3:1', portX, portY - 4);
+      this.ctx.font = '9px Arial';
+      this.ctx.fillText('?', portX, portY + 6);
+    } else if (port.type === '2:1') {
+      this.ctx.fillText('2:1', portX, portY - 4);
+
+      // Draw resource icon/letter
+      this.ctx.font = 'bold 10px Arial';
+      const resourceSymbol = {
+        wood: 'W',
+        brick: 'B',
+        sheep: 'S',
+        wheat: 'Wh',
+        ore: 'O'
+      };
+      const resourceColor = {
+        wood: '#228B22',
+        brick: '#CD853F',
+        sheep: '#90EE90',
+        wheat: '#FFD700',
+        ore: '#808080'
+      };
+
+      this.ctx.fillStyle = resourceColor[port.resource] || '#000';
+      this.ctx.fillText(resourceSymbol[port.resource] || '?', portX, portY + 7);
     }
   }
 

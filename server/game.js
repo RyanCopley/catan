@@ -123,7 +123,10 @@ class Game {
     const vertices = this.generateVertices(hexes);
     const edges = this.generateEdges(hexes);
 
-    return { hexes, vertices, edges, robber: hexes.find(h => h.hasRobber) };
+    // Generate ports around the board edges
+    const ports = this.generatePorts(hexes, vertices);
+
+    return { hexes, vertices, edges, ports, robber: hexes.find(h => h.hasRobber) };
   }
 
   generateVertices(hexes) {
@@ -169,6 +172,92 @@ class Game {
     });
 
     return Array.from(edges.values());
+  }
+
+  generatePorts(hexes, vertices) {
+    // Standard Catan has 9 ports total:
+    // - 4 generic 3:1 ports (any resource)
+    // - 5 specific 2:1 ports (one for each resource)
+
+    const portTypes = [
+      { type: '3:1', resource: null },
+      { type: '3:1', resource: null },
+      { type: '3:1', resource: null },
+      { type: '3:1', resource: null },
+      { type: '2:1', resource: 'wood' },
+      { type: '2:1', resource: 'brick' },
+      { type: '2:1', resource: 'sheep' },
+      { type: '2:1', resource: 'wheat' },
+      { type: '2:1', resource: 'ore' }
+    ];
+
+    // Shuffle port types for randomization
+    const shuffledPorts = this.shuffle([...portTypes]);
+
+    // Define edge hexes and their port-facing vertices
+    // These are the coastal hexes that border the water
+    const portLocations = [
+      // Top edge - facing up
+      { hexQ: 0, hexR: -2, vertices: [3, 4] },  // Top-left hex, bottom vertices
+      { hexQ: 2, hexR: -2, vertices: [4, 5] },  // Top-right hex, bottom-left vertices
+
+      // Upper-right edge - facing upper-right
+      { hexQ: 2, hexR: -1, vertices: [5, 0] },  // Upper-right side
+
+      // Lower-right edge - facing lower-right
+      { hexQ: 2, hexR: 0, vertices: [0, 1] },   // Right side
+      { hexQ: 1, hexR: 1, vertices: [0, 1] },   // Lower-right side
+
+      // Bottom edge - facing down
+      { hexQ: 0, hexR: 2, vertices: [1, 2] },   // Bottom center hex
+      { hexQ: -2, hexR: 2, vertices: [2, 3] },  // Bottom-left hex
+
+      // Lower-left edge - facing lower-left
+      { hexQ: -2, hexR: 1, vertices: [2, 3] },  // Left side
+
+      // Upper-left edge - facing upper-left
+      { hexQ: -1, hexR: -1, vertices: [3, 4] }  // Upper-left side
+    ];
+
+    const ports = [];
+
+    for (let i = 0; i < Math.min(portLocations.length, shuffledPorts.length); i++) {
+      const location = portLocations[i];
+      const portType = shuffledPorts[i];
+
+      // Find the hex
+      const hex = hexes.find(h => h.q === location.hexQ && h.r === location.hexR);
+      if (!hex) continue;
+
+      // Get the hex vertices
+      const hexVertices = this.getHexVertices(location.hexQ, location.hexR);
+
+      // Get the two vertices for this port
+      const portVertex1 = hexVertices[location.vertices[0]];
+      const portVertex2 = hexVertices[location.vertices[1]];
+
+      // Find matching vertices in the board
+      const vertex1 = vertices.find(v =>
+        Math.abs(v.x - portVertex1.x) < 0.01 && Math.abs(v.y - portVertex1.y) < 0.01
+      );
+      const vertex2 = vertices.find(v =>
+        Math.abs(v.x - portVertex2.x) < 0.01 && Math.abs(v.y - portVertex2.y) < 0.01
+      );
+
+      if (vertex1 && vertex2) {
+        ports.push({
+          type: portType.type,
+          resource: portType.resource,
+          vertices: [
+            { x: vertex1.x, y: vertex1.y },
+            { x: vertex2.x, y: vertex2.y }
+          ],
+          hex: { q: location.hexQ, r: location.hexR }
+        });
+      }
+    }
+
+    return ports;
   }
 
   getHexVertices(q, r) {
@@ -831,7 +920,7 @@ class Game {
     return false;
   }
 
-  tradeWithBank(playerId, givingResource, receivingResource) {
+  tradeWithBank(playerId, givingResource, receivingResource, amount) {
     const player = this.players.find(p => p.id === playerId);
 
     if (!player) {
@@ -844,21 +933,87 @@ class Game {
       return { success: false, error: 'Invalid resource type' };
     }
 
-    // Check if player has at least 4 of the giving resource
-    if (player.resources[givingResource] < 4) {
-      return { success: false, error: `Not enough ${givingResource}. Need 4, have ${player.resources[givingResource]}` };
+    // Get the best trade rate for this player
+    const tradeRate = this.getPlayerTradeRate(playerId, givingResource);
+    const requiredAmount = amount || tradeRate;
+
+    // Check if player has enough of the giving resource
+    if (player.resources[givingResource] < requiredAmount) {
+      return { success: false, error: `Not enough ${givingResource}. Need ${requiredAmount}, have ${player.resources[givingResource]}` };
     }
 
     // Execute the trade
-    player.resources[givingResource] -= 4;
+    player.resources[givingResource] -= requiredAmount;
     player.resources[receivingResource] += 1;
 
     return {
       success: true,
       playerName: player.name,
       gave: givingResource,
-      received: receivingResource
+      gaveAmount: requiredAmount,
+      received: receivingResource,
+      tradeRate: `${requiredAmount}:1`
     };
+  }
+
+  getPlayerTradeRate(playerId, resource = null) {
+    // Returns the best trade rate available to a player
+    // Default is 4:1, can be improved by ports
+    let bestRate = 4;
+
+    if (!this.board || !this.board.ports) return bestRate;
+
+    // Check if player has settlements/cities on any port vertices
+    this.board.ports.forEach(port => {
+      port.vertices.forEach(portVertex => {
+        const vertex = this.board.vertices.find(v =>
+          Math.abs(v.x - portVertex.x) < 0.01 && Math.abs(v.y - portVertex.y) < 0.01
+        );
+
+        if (vertex && vertex.playerId === playerId && vertex.building) {
+          // Player has a settlement or city on this port
+          if (port.type === '3:1') {
+            // Generic 3:1 port
+            bestRate = Math.min(bestRate, 3);
+          } else if (port.type === '2:1' && port.resource === resource) {
+            // Specific 2:1 port for this resource
+            bestRate = Math.min(bestRate, 2);
+          }
+        }
+      });
+    });
+
+    return bestRate;
+  }
+
+  getPlayerPorts(playerId) {
+    // Returns all ports accessible to a player
+    const accessiblePorts = [];
+
+    if (!this.board || !this.board.ports) return accessiblePorts;
+
+    this.board.ports.forEach(port => {
+      let hasAccess = false;
+
+      port.vertices.forEach(portVertex => {
+        const vertex = this.board.vertices.find(v =>
+          Math.abs(v.x - portVertex.x) < 0.01 && Math.abs(v.y - portVertex.y) < 0.01
+        );
+
+        if (vertex && vertex.playerId === playerId && vertex.building) {
+          hasAccess = true;
+        }
+      });
+
+      if (hasAccess) {
+        accessiblePorts.push({
+          type: port.type,
+          resource: port.resource
+        });
+      }
+    });
+
+    return accessiblePorts;
   }
 
   getState() {

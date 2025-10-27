@@ -172,17 +172,19 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('bankTrade', ({ gameId, givingResource, receivingResource }) => {
+  socket.on('bankTrade', ({ gameId, givingResource, receivingResource, amount }) => {
     const game = games.get(gameId);
     if (!game) return;
 
-    const result = game.tradeWithBank(socket.id, givingResource, receivingResource);
+    const result = game.tradeWithBank(socket.id, givingResource, receivingResource, amount);
     if (result.success) {
       io.to(gameId).emit('bankTradeExecuted', {
         game: game.getState(),
         playerName: result.playerName,
         gave: result.gave,
-        received: result.received
+        gaveAmount: result.gaveAmount,
+        received: result.received,
+        tradeRate: result.tradeRate
       });
     } else {
       socket.emit('error', { message: result.error });
