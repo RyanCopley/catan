@@ -609,6 +609,22 @@ class Game {
 
     // Check resources
     if (player.resources.wood >= 1 && player.resources.brick >= 1) {
+      // Road must connect to existing road or settlement/city
+      const isConnected = this.board.edges.some(existingEdge => {
+        if (existingEdge.playerId !== playerId || !existingEdge.road) return false;
+        // Check if edges share a vertex
+        return (Math.abs(existingEdge.v1.x - e.v1.x) < 0.01 && Math.abs(existingEdge.v1.y - e.v1.y) < 0.01) ||
+               (Math.abs(existingEdge.v1.x - e.v2.x) < 0.01 && Math.abs(existingEdge.v1.y - e.v2.y) < 0.01) ||
+               (Math.abs(existingEdge.v2.x - e.v1.x) < 0.01 && Math.abs(existingEdge.v2.y - e.v1.y) < 0.01) ||
+               (Math.abs(existingEdge.v2.x - e.v2.x) < 0.01 && Math.abs(existingEdge.v2.y - e.v2.y) < 0.01);
+      }) || this.board.vertices.some(v => {
+        if (v.playerId !== playerId || !v.building) return false;
+        return (Math.abs(v.x - e.v1.x) < 0.01 && Math.abs(v.y - e.v1.y) < 0.01) ||
+               (Math.abs(v.x - e.v2.x) < 0.01 && Math.abs(v.y - e.v2.y) < 0.01);
+      });
+
+      if (!isConnected) return false;
+
       player.resources.wood--;
       player.resources.brick--;
 
