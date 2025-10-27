@@ -198,6 +198,12 @@ export class Game {
   buildCity(playerId: string, vertex: Coordinate): boolean {
     if (!this.board) return false;
 
+    // Only the current player can build cities during their turn
+    if (this.players[this.currentPlayerIndex].id !== playerId) return false;
+
+    // Cities can only be built during the build phase of the playing phase
+    if (this.phase !== 'playing' || this.turnPhase !== 'build') return false;
+
     const player = this.players.find(p => p.id === playerId);
     if (!player) return false;
 
@@ -353,6 +359,16 @@ export class Game {
   }
 
   createTradeOffer(offeringPlayerId: string, targetPlayerId: string | null, offering: Partial<Resources>, requesting: Partial<Resources>) {
+    // Only the current player can initiate trades during their turn
+    if (this.players[this.currentPlayerIndex].id !== offeringPlayerId) {
+      return null;
+    }
+
+    // Trading is only allowed during the build phase of the playing phase
+    if (this.phase !== 'playing' || this.turnPhase !== 'build') {
+      return null;
+    }
+
     return this.tradeManager.createTradeOffer(this.players, offeringPlayerId, targetPlayerId, offering, requesting);
   }
 
@@ -370,6 +386,16 @@ export class Game {
 
   tradeWithBank(playerId: string, givingResource: ResourceType, receivingResource: ResourceType, amount?: number) {
     if (!this.board) return { success: false, error: 'No board' };
+
+    // Only the current player can trade with the bank during their turn
+    if (this.players[this.currentPlayerIndex].id !== playerId) {
+      return { success: false, error: 'Not your turn' };
+    }
+
+    // Bank trading is only allowed during the build phase of the playing phase
+    if (this.phase !== 'playing' || this.turnPhase !== 'build') {
+      return { success: false, error: 'Can only trade with bank during build phase' };
+    }
 
     const player = this.players.find(p => p.id === playerId);
     if (!player) return { success: false, error: 'Player not found' };

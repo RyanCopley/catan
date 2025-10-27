@@ -132,14 +132,29 @@ export function playKnight(
 }
 
 export function calculateLargestArmy(players: Player[]): void {
+  // Find who currently has Largest Army
+  const currentHolder = players.find(p => p.largestArmy);
+
+  // Find the player with the largest army (minimum 3 knights)
   let largestPlayer: Player | null = null;
-  let largestSize = 3;
+  let largestSize = 2; // Start at 2 so we only consider players with 3+ knights
 
   for (const player of players) {
-    if (player.armySize >= largestSize) {
+    if (player.armySize > largestSize) {
       largestSize = player.armySize;
       largestPlayer = player;
     }
+  }
+
+  // Tie-breaking rule: if there's a tie, the current holder keeps it
+  // Only transfer if someone has MORE knights than the current largest size
+  if (currentHolder && currentHolder.armySize === largestSize) {
+    largestPlayer = currentHolder;
+  }
+
+  // Only award if someone has at least 3 knights
+  if (largestSize < 3) {
+    largestPlayer = null;
   }
 
   // Update flags only - victory points will be computed via getVictoryPoints()

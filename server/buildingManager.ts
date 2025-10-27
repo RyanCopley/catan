@@ -168,15 +168,33 @@ export function buildCity(player: Player, board: Board, vertex: Coordinate): boo
 }
 
 export function calculateLongestRoad(players: Player[], board: Board): void {
+  // Find who currently has Longest Road
+  const currentHolder = players.find(p => p.longestRoad);
+
+  // Find the player with the longest road (minimum 5 segments)
   let longestPlayer: Player | null = null;
-  let longestLength = 5;
+  let longestLength = 4; // Start at 4 so we only consider players with 5+ segments
 
   for (const player of players) {
     const longestPath = findLongestContinuousPath(player, board);
-    if (longestPath >= longestLength) {
+    if (longestPath > longestLength) {
       longestLength = longestPath;
       longestPlayer = player;
     }
+  }
+
+  // Tie-breaking rule: if there's a tie, the current holder keeps it
+  // Only transfer if someone has MORE road segments than the current longest length
+  if (currentHolder) {
+    const currentHolderLength = findLongestContinuousPath(currentHolder, board);
+    if (currentHolderLength === longestLength) {
+      longestPlayer = currentHolder;
+    }
+  }
+
+  // Only award if someone has at least 5 road segments
+  if (longestLength < 5) {
+    longestPlayer = null;
   }
 
   // Update flags only - victory points will be computed via getVictoryPoints()
