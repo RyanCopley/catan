@@ -785,3 +785,144 @@ input[type="text"]:focus {
   padding: 8px;
   font-size: 12px;
 }
+
+/* Scoreboard */
+.scoreboard {
+  background: white;
+  border-bottom: 2px solid #ddd;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.scoreboard-content {
+  display: flex;
+  gap: 0;
+  padding: 15px 20px;
+  min-width: max-content;
+}
+
+.scoreboard-player {
+  flex: 1;
+  min-width: 200px;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-left: 4px solid transparent;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.scoreboard-player:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.scoreboard-player.current-turn {
+  background: #fff3bf;
+  border-left-color: #ffd43b;
+}
+
+.scoreboard-player.my-player {
+  background: #e7f5ff;
+  border-left-color: #4dabf7;
+}
+
+.scoreboard-player.my-player.current-turn {
+  background: #fff3bf;
+  border-left-color: #ffd43b;
+}
+
+.scoreboard-player-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.scoreboard-player-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  flex-shrink: 0;
+}
+
+.scoreboard-player-name {
+  font-weight: bold;
+  font-size: 16px;
+  color: #333;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scoreboard-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scoreboard-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.scoreboard-stat-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.scoreboard-stat-value {
+  font-weight: bold;
+  color: #333;
+  background: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  min-width: 30px;
+  text-align: center;
+}
+
+.scoreboard-stat.highlight .scoreboard-stat-value {
+  background: #51cf66;
+  color: white;
+}
+
+.scoreboard-stat.score .scoreboard-stat-value {
+  background: #667eea;
+  color: white;
+  font-size: 16px;
+  padding: 4px 10px;
+}
+
+.scoreboard-badges {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.scoreboard-badge {
+  background: #ffd43b;
+  color: #333;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  border: 1px solid #fcc419;
+}
+
+.scoreboard-badge.longest-road {
+  background: #74c0fc;
+  border-color: #4dabf7;
+}
+
+.scoreboard-badge.largest-army {
+  background: #ffa8a8;
+  border-color: #ff6b6b;
+}
