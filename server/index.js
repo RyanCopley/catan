@@ -236,6 +236,109 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('buyDevelopmentCard', ({ gameId }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.buyDevelopmentCard(socket.id);
+    if (result.success) {
+      const player = game.players.find(p => p.id === socket.id);
+      // Send card type only to the buyer
+      socket.emit('developmentCardBought', {
+        game: game.getState(),
+        cardType: result.cardType
+      });
+      // Send generic notification to others
+      socket.to(gameId).emit('developmentCardBoughtByOther', {
+        game: game.getState(),
+        playerName: player.name
+      });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  socket.on('playKnight', ({ gameId, hexCoords }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.playKnight(socket.id, hexCoords);
+    if (result.success) {
+      io.to(gameId).emit('knightPlayed', {
+        game: game.getState(),
+        playerId: socket.id,
+        hexCoords,
+        stealableTargets: result.stealableTargets
+      });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  socket.on('playYearOfPlenty', ({ gameId, resource1, resource2 }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.playYearOfPlenty(socket.id, resource1, resource2);
+    if (result.success) {
+      const player = game.players.find(p => p.id === socket.id);
+      io.to(gameId).emit('yearOfPlentyPlayed', {
+        game: game.getState(),
+        playerName: player.name,
+        resource1: result.resource1,
+        resource2: result.resource2
+      });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  socket.on('playMonopoly', ({ gameId, resource }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.playMonopoly(socket.id, resource);
+    if (result.success) {
+      const player = game.players.find(p => p.id === socket.id);
+      io.to(gameId).emit('monopolyPlayed', {
+        game: game.getState(),
+        playerName: player.name,
+        resource: result.resource,
+        totalTaken: result.totalTaken
+      });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  socket.on('playRoadBuilding', ({ gameId }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const result = game.playRoadBuilding(socket.id);
+    if (result.success) {
+      const player = game.players.find(p => p.id === socket.id);
+      io.to(gameId).emit('roadBuildingPlayed', {
+        game: game.getState(),
+        playerName: player.name
+      });
+    } else {
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  socket.on('buildRoadFree', ({ gameId, edge }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const success = game.buildRoadFree(socket.id, edge);
+    if (success) {
+      io.to(gameId).emit('roadBuiltFree', { game: game.getState(), edge, playerId: socket.id });
+    } else {
+      socket.emit('error', { message: 'Cannot build road there' });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
     // Handle player disconnection

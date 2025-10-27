@@ -13,6 +13,8 @@ class Game {
     this.buildings = { settlements: [], cities: [], roads: [] };
     this.tradeOffers = []; // Active trade offers
     this.nextTradeId = 1;
+    this.developmentCardDeck = []; // Development card deck
+    this.devCardPlayedThisTurn = false; // Track if a dev card was played this turn
   }
 
   addPlayer(socketId, name) {
@@ -23,6 +25,8 @@ class Game {
       color: colors[this.players.length],
       resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 },
       developmentCards: [],
+      newDevelopmentCards: [], // Cards bought this turn (can't be played until next turn)
+      victoryPointCards: 0, // Hidden victory point cards count
       settlements: [],
       cities: [],
       roads: [],
@@ -67,9 +71,37 @@ class Game {
     if (this.players.length < 2) return false;
 
     this.board = this.generateBoard();
+    this.initializeDevelopmentCards();
     this.phase = 'setup';
     this.turnPhase = 'place';
     return true;
+  }
+
+  initializeDevelopmentCards() {
+    // Standard Catan development card distribution:
+    // 14 Knight cards
+    // 5 Victory Point cards (1 each: Chapel, Library, Market, Palace, University)
+    // 2 Road Building cards
+    // 2 Monopoly cards
+    // 2 Year of Plenty cards
+    // Total: 25 cards
+
+    const cards = [
+      // Knights (14)
+      'knight', 'knight', 'knight', 'knight', 'knight',
+      'knight', 'knight', 'knight', 'knight', 'knight',
+      'knight', 'knight', 'knight', 'knight',
+      // Victory Points (5)
+      'victoryPoint', 'victoryPoint', 'victoryPoint', 'victoryPoint', 'victoryPoint',
+      // Road Building (2)
+      'roadBuilding', 'roadBuilding',
+      // Monopoly (2)
+      'monopoly', 'monopoly',
+      // Year of Plenty (2)
+      'yearOfPlenty', 'yearOfPlenty'
+    ];
+
+    this.developmentCardDeck = this.shuffle([...cards]);
   }
 
   generateBoard() {
@@ -610,11 +642,325 @@ class Game {
       player.settlements = player.settlements.filter(s =>
         Math.abs(s.x - vertex.x) >= 0.01 || Math.abs(s.y - vertex.y) >= 0.01
       );
+      // Cities are worth 2 VP total, settlement was worth 1 VP, so add 1 more
       player.victoryPoints++;
       return true;
     }
 
     return false;
+  }
+
+  buyDevelopmentCard(playerId) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found' };
+
+    // Check if it's the current player's turn
+    if (this.players[this.currentPlayerIndex].id !== playerId) {
+      return { success: false, error: 'Not your turn' };
+    }
+
+    // Check if in playing phase and build turn phase
+    if (this.phase !== 'playing' || this.turnPhase !== 'build') {
+      return { success: false, error: 'Can only buy cards during build phase' };
+    }
+
+    // Check if there are cards left
+    if (this.developmentCardDeck.length === 0) {
+      return { success: false, error: 'No development cards left' };
+    }
+
+    // Development card costs: 1 Sheep, 1 Wheat, 1 Ore
+    if (player.resources.sheep >= 1 && player.resources.wheat >= 1 && player.resources.ore >= 1) {
+      player.resources.sheep--;
+      player.resources.wheat--;
+      player.resources.ore--;
+
+      // Draw a card from the deck
+      const card = this.developmentCardDeck.pop();
+
+      // Add to newDevelopmentCards (can't be played this turn, except Victory Points)
+      player.newDevelopmentCards.push(card);
+
+      // Victory Point cards immediately add to victory points but remain hidden
+      if (card === 'victoryPoint') {
+        player.victoryPoints++;
+        player.victoryPointCards++;
+        // Remove from newDevelopmentCards (don't show in hand)
+        player.newDevelopmentCards = player.newDevelopmentCards.filter(c => c !== card);
+      }
+
+      return { success: true, cardType: card };
+    }
+
+    return { success: false, error: 'Not enough resources (need 1 sheep, 1 wheat, 1 ore)' };
+  }
+
+  playKnight(playerId, hexCoords) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found' };
+
+    // Check if it's the current player's turn
+    if (this.players[this.currentPlayerIndex].id !== playerId) {
+      return { success: false, error: 'Not your turn' };
+    }
+
+    // Check if in playing phase and build turn phase
+    if (this.phase !== 'playing' || this.turnPhase !== 'build') {
+      return { success: false, error: 'Can only play cards during build phase' };
+    }
+
+    // Check if a dev card was already played this turn
+    if (this.devCardPlayedThisTurn) {
+      return { success: false, error: 'You can only play one development card per turn' };
+    }
+
+    // Check if player has a knight card (not in newDevelopmentCards)
+    const knightIndex = player.developmentCards.findIndex(c => c === 'knight');
+    if (knightIndex === -1) {
+      return { success: false, error: 'You do not have a knight card to play' };
+    }
+
+    // Remove the knight card
+    player.developmentCards.splice(knightIndex, 1);
+
+    // Mark that a dev card was played this turn
+    this.devCardPlayedThisTurn = true;
+
+    // Increase army size
+    player.armySize++;
+
+    // Find the hex to move robber to
+    const hex = this.board.hexes.find(h => h.q === hexCoords.q && h.r === hexCoords.r);
+    if (!hex) {
+      return { success: false, error: 'Invalid hex' };
+    }
+
+    // Cannot place robber on the same hex
+    if (hex.hasRobber) {
+      return { success: false, error: 'Robber is already there' };
+    }
+
+    // Remove robber from current hex
+    this.board.hexes.forEach(h => h.hasRobber = false);
+
+    // Place robber on new hex
+    hex.hasRobber = true;
+    this.board.robber = hex;
+
+    // Calculate largest army
+    this.calculateLargestArmy();
+
+    // Get players with settlements/cities on this hex for stealing
+    const playersOnHex = this.getPlayersOnHex(hex);
+    const stealableTargets = playersOnHex.filter(p => p !== playerId);
+
+    return { success: true, stealableTargets };
+  }
+
+  calculateLargestArmy() {
+    // Largest Army: minimum 3 knights played, worth 2 VP
+    let largestPlayer = null;
+    let largestSize = 2; // Minimum 3 knights to get largest army
+
+    this.players.forEach(player => {
+      if (player.armySize > largestSize) {
+        largestSize = player.armySize;
+        largestPlayer = player;
+      }
+    });
+
+    // Remove largest army from all players first
+    this.players.forEach(player => {
+      if (player.largestArmy && player !== largestPlayer) {
+        player.largestArmy = false;
+        player.victoryPoints -= 2;
+      }
+    });
+
+    // Award largest army to the player with most knights (if at least 3)
+    if (largestPlayer && !largestPlayer.largestArmy) {
+      largestPlayer.largestArmy = true;
+      largestPlayer.victoryPoints += 2;
+    }
+  }
+
+  playYearOfPlenty(playerId, resource1, resource2) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found' };
+
+    // Check if it's the current player's turn
+    if (this.players[this.currentPlayerIndex].id !== playerId) {
+      return { success: false, error: 'Not your turn' };
+    }
+
+    // Check if in playing phase and build turn phase
+    if (this.phase !== 'playing' || this.turnPhase !== 'build') {
+      return { success: false, error: 'Can only play cards during build phase' };
+    }
+
+    // Check if a dev card was already played this turn
+    if (this.devCardPlayedThisTurn) {
+      return { success: false, error: 'You can only play one development card per turn' };
+    }
+
+    // Check if player has a yearOfPlenty card
+    const cardIndex = player.developmentCards.findIndex(c => c === 'yearOfPlenty');
+    if (cardIndex === -1) {
+      return { success: false, error: 'You do not have a Year of Plenty card' };
+    }
+
+    // Validate resources
+    const validResources = ['wood', 'brick', 'sheep', 'wheat', 'ore'];
+    if (!validResources.includes(resource1) || !validResources.includes(resource2)) {
+      return { success: false, error: 'Invalid resource type' };
+    }
+
+    // Remove the card
+    player.developmentCards.splice(cardIndex, 1);
+
+    // Mark that a dev card was played this turn
+    this.devCardPlayedThisTurn = true;
+
+    // Give the player the resources
+    player.resources[resource1]++;
+    player.resources[resource2]++;
+
+    return { success: true, resource1, resource2 };
+  }
+
+  playMonopoly(playerId, resource) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found' };
+
+    // Check if it's the current player's turn
+    if (this.players[this.currentPlayerIndex].id !== playerId) {
+      return { success: false, error: 'Not your turn' };
+    }
+
+    // Check if in playing phase and build turn phase
+    if (this.phase !== 'playing' || this.turnPhase !== 'build') {
+      return { success: false, error: 'Can only play cards during build phase' };
+    }
+
+    // Check if a dev card was already played this turn
+    if (this.devCardPlayedThisTurn) {
+      return { success: false, error: 'You can only play one development card per turn' };
+    }
+
+    // Check if player has a monopoly card
+    const cardIndex = player.developmentCards.findIndex(c => c === 'monopoly');
+    if (cardIndex === -1) {
+      return { success: false, error: 'You do not have a Monopoly card' };
+    }
+
+    // Validate resource
+    const validResources = ['wood', 'brick', 'sheep', 'wheat', 'ore'];
+    if (!validResources.includes(resource)) {
+      return { success: false, error: 'Invalid resource type' };
+    }
+
+    // Remove the card
+    player.developmentCards.splice(cardIndex, 1);
+
+    // Mark that a dev card was played this turn
+    this.devCardPlayedThisTurn = true;
+
+    // Take all of that resource from other players
+    let totalTaken = 0;
+    this.players.forEach(otherPlayer => {
+      if (otherPlayer.id !== playerId) {
+        const amount = otherPlayer.resources[resource];
+        if (amount > 0) {
+          player.resources[resource] += amount;
+          otherPlayer.resources[resource] = 0;
+          totalTaken += amount;
+        }
+      }
+    });
+
+    return { success: true, resource, totalTaken };
+  }
+
+  playRoadBuilding(playerId) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return { success: false, error: 'Player not found' };
+
+    // Check if it's the current player's turn
+    if (this.players[this.currentPlayerIndex].id !== playerId) {
+      return { success: false, error: 'Not your turn' };
+    }
+
+    // Check if in playing phase and build turn phase
+    if (this.phase !== 'playing' || this.turnPhase !== 'build') {
+      return { success: false, error: 'Can only play cards during build phase' };
+    }
+
+    // Check if a dev card was already played this turn
+    if (this.devCardPlayedThisTurn) {
+      return { success: false, error: 'You can only play one development card per turn' };
+    }
+
+    // Check if player has a roadBuilding card
+    const cardIndex = player.developmentCards.findIndex(c => c === 'roadBuilding');
+    if (cardIndex === -1) {
+      return { success: false, error: 'You do not have a Road Building card' };
+    }
+
+    // Remove the card
+    player.developmentCards.splice(cardIndex, 1);
+
+    // Mark that a dev card was played this turn
+    this.devCardPlayedThisTurn = true;
+
+    // Set a flag that player can build 2 free roads
+    player.freeRoads = 2;
+
+    return { success: true };
+  }
+
+  buildRoadFree(playerId, edge) {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    // Check if player has free roads available
+    if (!player.freeRoads || player.freeRoads <= 0) return false;
+
+    // Check if it's the current player's turn
+    if (this.players[this.currentPlayerIndex].id !== playerId) return false;
+
+    const e = this.board.edges.find(ed =>
+      (Math.abs(ed.v1.x - edge.v1.x) < 0.01 && Math.abs(ed.v1.y - edge.v1.y) < 0.01 &&
+       Math.abs(ed.v2.x - edge.v2.x) < 0.01 && Math.abs(ed.v2.y - edge.v2.y) < 0.01) ||
+      (Math.abs(ed.v1.x - edge.v2.x) < 0.01 && Math.abs(ed.v1.y - edge.v2.y) < 0.01 &&
+       Math.abs(ed.v2.x - edge.v1.x) < 0.01 && Math.abs(ed.v2.y - edge.v1.y) < 0.01)
+    );
+
+    if (!e || e.road) return false;
+
+    // Road must connect to existing road or settlement/city
+    const isConnected = this.board.edges.some(existingEdge => {
+      if (existingEdge.playerId !== playerId || !existingEdge.road) return false;
+      // Check if edges share a vertex
+      return (Math.abs(existingEdge.v1.x - e.v1.x) < 0.01 && Math.abs(existingEdge.v1.y - e.v1.y) < 0.01) ||
+             (Math.abs(existingEdge.v1.x - e.v2.x) < 0.01 && Math.abs(existingEdge.v1.y - e.v2.y) < 0.01) ||
+             (Math.abs(existingEdge.v2.x - e.v1.x) < 0.01 && Math.abs(existingEdge.v2.y - e.v1.y) < 0.01) ||
+             (Math.abs(existingEdge.v2.x - e.v2.x) < 0.01 && Math.abs(existingEdge.v2.y - e.v2.y) < 0.01);
+    }) || this.board.vertices.some(v => {
+      if (v.playerId !== playerId || !v.building) return false;
+      return (Math.abs(v.x - e.v1.x) < 0.01 && Math.abs(v.y - e.v1.y) < 0.01) ||
+             (Math.abs(v.x - e.v2.x) < 0.01 && Math.abs(v.y - e.v2.y) < 0.01);
+    });
+
+    if (!isConnected) return false;
+
+    e.road = true;
+    e.playerId = playerId;
+    player.roads.push(edge);
+    player.freeRoads--;
+
+    this.calculateLongestRoad();
+
+    return true;
   }
 
   getAdjacentVertices(vertex) {
@@ -679,6 +1025,16 @@ class Game {
 
       this.handleSetupTurn();
     } else {
+      // Move new development cards to playable cards at end of turn
+      const player = this.players[this.currentPlayerIndex];
+      if (player.newDevelopmentCards.length > 0) {
+        player.developmentCards.push(...player.newDevelopmentCards);
+        player.newDevelopmentCards = [];
+      }
+
+      // Reset dev card played flag for next turn
+      this.devCardPlayedThisTurn = false;
+
       this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
       this.turnPhase = 'roll';
       this.diceRoll = null;

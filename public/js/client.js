@@ -177,6 +177,83 @@ class GameClient {
       this.renderer.addLogMessage(`${player.name} built a city`);
     });
 
+    this.socket.on('developmentCardBought', (data) => {
+      this.gameState = data.game;
+      this.updateGameUI();
+      const cardNames = {
+        knight: 'Knight',
+        victoryPoint: 'Victory Point',
+        roadBuilding: 'Road Building',
+        monopoly: 'Monopoly',
+        yearOfPlenty: 'Year of Plenty'
+      };
+      this.renderer.addLogMessage(`You bought a ${cardNames[data.cardType]} card!`);
+    });
+
+    this.socket.on('developmentCardBoughtByOther', (data) => {
+      this.gameState = data.game;
+      this.updateGameUI();
+      this.renderer.addLogMessage(`${data.playerName} bought a development card`);
+    });
+
+    this.socket.on('knightPlayed', (data) => {
+      this.gameState = data.game;
+      this.renderer.setBoard(this.gameState.board);
+      this.updateGameUI();
+      const player = this.gameState.players.find(p => p.id === data.playerId);
+      this.renderer.addLogMessage(`${player.name} played a Knight card`);
+      this.endKnightMode();
+
+      // If I'm the current player and there are stealable targets, show steal modal
+      if (data.playerId === this.playerId && data.stealableTargets.length > 0) {
+        this.showStealModal(data.stealableTargets);
+      } else if (data.playerId === this.playerId && data.stealableTargets.length === 0) {
+        // No one to steal from
+        this.renderer.addLogMessage('Robber moved, but no one to steal from');
+        this.socket.emit('stealCard', { gameId: this.gameId, targetPlayerId: null });
+      }
+    });
+
+    this.socket.on('yearOfPlentyPlayed', (data) => {
+      this.gameState = data.game;
+      this.updateGameUI();
+      this.renderer.addLogMessage(`${data.playerName} played Year of Plenty and took ${data.resource1} and ${data.resource2}`);
+    });
+
+    this.socket.on('monopolyPlayed', (data) => {
+      this.gameState = data.game;
+      this.updateGameUI();
+      this.renderer.addLogMessage(`${data.playerName} played Monopoly and took all ${data.resource} (${data.totalTaken} total)`);
+    });
+
+    this.socket.on('roadBuildingPlayed', (data) => {
+      this.gameState = data.game;
+      this.updateGameUI();
+      this.renderer.addLogMessage(`${data.playerName} played Road Building - can build 2 free roads`);
+
+      // Show notice if it's the player who played the card
+      const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+      if (myPlayer && myPlayer.freeRoads > 0) {
+        document.getElementById('roadBuildingNotice').style.display = 'block';
+        document.getElementById('freeRoadsRemaining').textContent = myPlayer.freeRoads;
+      }
+    });
+
+    this.socket.on('roadBuiltFree', (data) => {
+      this.gameState = data.game;
+      this.renderer.setBoard(this.gameState.board);
+      this.updateGameUI();
+      const player = this.gameState.players.find(p => p.id === data.playerId);
+      const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+      if (myPlayer && myPlayer.freeRoads > 0) {
+        this.renderer.addLogMessage(`${player.name} built a free road (${myPlayer.freeRoads} remaining)`);
+        document.getElementById('freeRoadsRemaining').textContent = myPlayer.freeRoads;
+      } else {
+        this.renderer.addLogMessage(`${player.name} built a free road`);
+        document.getElementById('roadBuildingNotice').style.display = 'none';
+      }
+    });
+
     this.socket.on('turnEnded', (data) => {
       this.gameState = data.game;
       this.updateGameUI();
@@ -288,6 +365,10 @@ class GameClient {
       this.renderer.setBuildMode('city');
     });
 
+    document.getElementById('buyDevCardBtn').addEventListener('click', () => {
+      this.socket.emit('buyDevelopmentCard', { gameId: this.gameId });
+    });
+
     document.getElementById('endTurnBtn').addEventListener('click', () => {
       this.socket.emit('endTurn', { gameId: this.gameId });
       this.renderer.clearBuildMode();
@@ -334,6 +415,32 @@ class GameClient {
       this.submitBankTrade();
     });
 
+    // Year of Plenty modal
+    document.getElementById('closeYearOfPlentyBtn').addEventListener('click', () => {
+      this.closeYearOfPlentyModal();
+    });
+
+    document.getElementById('cancelYearOfPlentyBtn').addEventListener('click', () => {
+      this.closeYearOfPlentyModal();
+    });
+
+    document.getElementById('submitYearOfPlentyBtn').addEventListener('click', () => {
+      this.submitYearOfPlenty();
+    });
+
+    // Monopoly modal
+    document.getElementById('closeMonopolyBtn').addEventListener('click', () => {
+      this.closeMonopolyModal();
+    });
+
+    document.getElementById('cancelMonopolyBtn').addEventListener('click', () => {
+      this.closeMonopolyModal();
+    });
+
+    document.getElementById('submitMonopolyBtn').addEventListener('click', () => {
+      this.submitMonopoly();
+    });
+
     // Close bank trade modal when clicking outside
     document.getElementById('bankTradeModal').addEventListener('click', (e) => {
       if (e.target.id === 'bankTradeModal') {
@@ -357,13 +464,24 @@ class GameClient {
 
   handleEdgeClick(edge) {
     if (this.renderer.buildMode === 'road') {
-      this.socket.emit('buildRoad', { gameId: this.gameId, edge });
+      // Check if player has free roads from Road Building card
+      const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+      if (myPlayer && myPlayer.freeRoads && myPlayer.freeRoads > 0) {
+        this.socket.emit('buildRoadFree', { gameId: this.gameId, edge });
+      } else {
+        this.socket.emit('buildRoad', { gameId: this.gameId, edge });
+      }
     }
   }
 
   handleHexClick(hex) {
-    // Only allow hex clicking during robber phase
-    if (this.gameState.turnPhase === 'robber') {
+    // Allow hex clicking during robber phase OR when playing knight card
+    if (this.gameState.turnPhase === 'robber' || this.renderer.buildMode === 'robber') {
+      if (this.renderer.buildMode === 'robber') {
+        // Playing knight card
+        this.socket.emit('playKnight', { gameId: this.gameId, hexCoords: { q: hex.q, r: hex.r } });
+        return;
+      }
       const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
       if (currentPlayer.id === this.playerId) {
         // Check if all players have discarded
@@ -996,6 +1114,7 @@ class GameClient {
       this.renderer.playerColors[currentPlayer.color];
 
     let phaseText = '';
+    let showRobberNotice = false;
     if (this.gameState.phase === 'setup') {
       phaseText = `Setup Round ${this.gameState.setupRound} - Place Settlement & Road`;
     } else if (this.gameState.phase === 'playing') {
@@ -1009,6 +1128,11 @@ class GameClient {
           const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
           if (currentPlayer.id === this.playerId) {
             phaseText = 'Move Robber & Steal Card';
+            // Check if all players have discarded before showing notice
+            const allDiscarded = this.gameState.players.every(p => !p.mustDiscard || p.mustDiscard === 0);
+            if (allDiscarded) {
+              showRobberNotice = true;
+            }
           } else {
             phaseText = 'Waiting for Robber';
           }
@@ -1019,12 +1143,59 @@ class GameClient {
     }
     document.getElementById('phaseText').textContent = phaseText;
 
+    // Show/hide robber notice
+    const robberNotice = document.getElementById('robberNotice');
+    if (showRobberNotice) {
+      robberNotice.style.display = 'block';
+    } else {
+      robberNotice.style.display = 'none';
+    }
+
+    // Show/hide road building notice
+    const roadBuildingNotice = document.getElementById('roadBuildingNotice');
+    if (myPlayer && myPlayer.freeRoads > 0) {
+      roadBuildingNotice.style.display = 'block';
+      document.getElementById('freeRoadsRemaining').textContent = myPlayer.freeRoads;
+    } else {
+      roadBuildingNotice.style.display = 'none';
+    }
+
     // Update player info
     if (myPlayer) {
       document.getElementById('playerColor').style.backgroundColor =
         this.renderer.playerColors[myPlayer.color];
-      document.getElementById('victoryPoints').querySelector('span').textContent =
-        myPlayer.victoryPoints;
+
+      // Update total victory points
+      document.getElementById('totalVP').textContent = myPlayer.victoryPoints;
+
+      // Update VP breakdown
+      document.getElementById('vpSettlements').textContent = myPlayer.settlements.length;
+      document.getElementById('vpCities').textContent = myPlayer.cities.length * 2;
+
+      // Show/hide Longest Road
+      const longestRoadItem = document.getElementById('vpLongestRoadItem');
+      if (myPlayer.longestRoad) {
+        longestRoadItem.style.display = 'block';
+      } else {
+        longestRoadItem.style.display = 'none';
+      }
+
+      // Show/hide Largest Army
+      const largestArmyItem = document.getElementById('vpLargestArmyItem');
+      if (myPlayer.largestArmy) {
+        largestArmyItem.style.display = 'block';
+      } else {
+        largestArmyItem.style.display = 'none';
+      }
+
+      // Show VP development cards count (hidden cards)
+      const vpDevCardsItem = document.getElementById('vpDevCardsItem');
+      if (myPlayer.victoryPointCards > 0) {
+        document.getElementById('vpDevCards').textContent = myPlayer.victoryPointCards;
+        vpDevCardsItem.style.display = 'block';
+      } else {
+        vpDevCardsItem.style.display = 'none';
+      }
 
       // Update resources
       document.getElementById('wood').textContent = myPlayer.resources.wood;
@@ -1032,6 +1203,9 @@ class GameClient {
       document.getElementById('sheep').textContent = myPlayer.resources.sheep;
       document.getElementById('wheat').textContent = myPlayer.resources.wheat;
       document.getElementById('ore').textContent = myPlayer.resources.ore;
+
+      // Update development cards display
+      this.updateDevelopmentCardsDisplay(myPlayer);
     }
 
     // Update buttons
@@ -1042,6 +1216,7 @@ class GameClient {
     let canBuildSettlement = false;
     let canBuildRoad = false;
     let canBuildCity = false;
+    let canBuyDevCard = false;
     let canEndTurn = false;
 
     if (isSetup && isMyTurn) {
@@ -1058,11 +1233,14 @@ class GameClient {
       // Settlement: 1 wood, 1 brick, 1 sheep, 1 wheat
       canBuildSettlement = res.wood >= 1 && res.brick >= 1 && res.sheep >= 1 && res.wheat >= 1;
 
-      // Road: 1 wood, 1 brick
-      canBuildRoad = res.wood >= 1 && res.brick >= 1;
+      // Road: 1 wood, 1 brick OR has free roads from Road Building card
+      canBuildRoad = (res.wood >= 1 && res.brick >= 1) || (myPlayer.freeRoads > 0);
 
       // City: 2 wheat, 3 ore (also need to have a settlement to upgrade)
       canBuildCity = res.wheat >= 2 && res.ore >= 3 && myPlayer.settlements.length > 0;
+
+      // Development Card: 1 sheep, 1 wheat, 1 ore
+      canBuyDevCard = res.sheep >= 1 && res.wheat >= 1 && res.ore >= 1;
 
       // Can end turn during build phase (dice already rolled)
       canEndTurn = true;
@@ -1075,6 +1253,7 @@ class GameClient {
     document.getElementById('buildSettlementBtn').disabled = !canBuildSettlement;
     document.getElementById('buildRoadBtn').disabled = !canBuildRoad;
     document.getElementById('buildCityBtn').disabled = !canBuildCity;
+    document.getElementById('buyDevCardBtn').disabled = !canBuyDevCard;
     document.getElementById('tradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build');
     document.getElementById('bankTradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build');
     document.getElementById('endTurnBtn').disabled = !canEndTurn;
@@ -1122,6 +1301,204 @@ class GameClient {
         }, 500);
       }
     }
+  }
+
+  updateDevelopmentCardsDisplay(player) {
+    const cardDescriptions = {
+      knight: 'Move robber and steal',
+      victoryPoint: '+1 Victory Point',
+      roadBuilding: 'Build 2 free roads',
+      monopoly: 'Take all of 1 resource',
+      yearOfPlenty: 'Take any 2 resources'
+    };
+
+    const cardNames = {
+      knight: 'Knight',
+      victoryPoint: 'Victory Point',
+      roadBuilding: 'Road Building',
+      monopoly: 'Monopoly',
+      yearOfPlenty: 'Year of Plenty'
+    };
+
+    // Count total cards (excluding VP cards since they're shown in VP breakdown)
+    const playableCards = player.developmentCards.filter(c => c !== 'victoryPoint');
+    const totalCards = playableCards.length + player.newDevelopmentCards.length;
+    document.getElementById('devCardCount').textContent = totalCards;
+
+    const cardsList = document.getElementById('developmentCardsList');
+    cardsList.innerHTML = '';
+
+    if (totalCards === 0) {
+      const noCards = document.createElement('p');
+      noCards.className = 'no-cards';
+      noCards.textContent = 'No development cards yet';
+      cardsList.appendChild(noCards);
+      return;
+    }
+
+    // Check if cards can be played (only during your turn in build phase)
+    const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
+    const isMyTurn = currentPlayer && currentPlayer.id === this.playerId;
+    const canPlayCards = isMyTurn && this.gameState.turnPhase === 'build' && this.gameState.phase === 'playing';
+
+    // Display playable cards (excluding VP cards)
+    player.developmentCards.forEach(cardType => {
+      if (cardType === 'victoryPoint') return; // Don't show VP cards as playable
+
+      const cardDiv = document.createElement('div');
+      cardDiv.className = `dev-card ${cardType}`;
+
+      if (!canPlayCards) {
+        cardDiv.classList.add('disabled');
+      } else {
+        cardDiv.onclick = () => this.playDevelopmentCard(cardType);
+      }
+
+      const info = document.createElement('div');
+      info.className = 'dev-card-info';
+
+      const name = document.createElement('div');
+      name.className = 'dev-card-name';
+      name.textContent = cardNames[cardType];
+
+      const desc = document.createElement('div');
+      desc.className = 'dev-card-desc';
+      desc.textContent = cardDescriptions[cardType];
+
+      info.appendChild(name);
+      info.appendChild(desc);
+
+      const status = document.createElement('div');
+      status.className = 'dev-card-status';
+      status.textContent = canPlayCards ? 'Click to Play' : 'Wait Your Turn';
+
+      cardDiv.appendChild(info);
+      cardDiv.appendChild(status);
+      cardsList.appendChild(cardDiv);
+    });
+
+    // Display new cards (can't be played this turn)
+    player.newDevelopmentCards.forEach(cardType => {
+      const cardDiv = document.createElement('div');
+      cardDiv.className = `dev-card ${cardType} new`;
+
+      const info = document.createElement('div');
+      info.className = 'dev-card-info';
+
+      const name = document.createElement('div');
+      name.className = 'dev-card-name';
+      name.textContent = cardNames[cardType];
+
+      const desc = document.createElement('div');
+      desc.className = 'dev-card-desc';
+      desc.textContent = cardDescriptions[cardType];
+
+      info.appendChild(name);
+      info.appendChild(desc);
+
+      const status = document.createElement('div');
+      status.className = 'dev-card-status';
+      status.textContent = 'Next Turn';
+
+      cardDiv.appendChild(info);
+      cardDiv.appendChild(status);
+      cardsList.appendChild(cardDiv);
+    });
+  }
+
+  playDevelopmentCard(cardType) {
+    // Check if it's my turn
+    const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
+    if (currentPlayer.id !== this.playerId) {
+      alert('Not your turn!');
+      return;
+    }
+
+    // Check if in build phase
+    if (this.gameState.turnPhase !== 'build') {
+      alert('You can only play development cards during the build phase');
+      return;
+    }
+
+    switch(cardType) {
+      case 'knight':
+        this.startKnightMode();
+        break;
+      case 'yearOfPlenty':
+        this.showYearOfPlentyModal();
+        break;
+      case 'monopoly':
+        this.showMonopolyModal();
+        break;
+      case 'roadBuilding':
+        if (confirm('Play Road Building card? You can build 2 free roads.')) {
+          this.socket.emit('playRoadBuilding', { gameId: this.gameId });
+        }
+        break;
+    }
+  }
+
+  startKnightMode() {
+    // Show banner notification
+    document.getElementById('knightNotice').style.display = 'block';
+    this.renderer.setBuildMode('robber');
+    this.renderer.addLogMessage('Click on a hex to move the robber');
+  }
+
+  endKnightMode() {
+    document.getElementById('knightNotice').style.display = 'none';
+    this.renderer.clearBuildMode();
+  }
+
+  showYearOfPlentyModal() {
+    document.getElementById('yearOfPlentyModal').style.display = 'flex';
+  }
+
+  closeYearOfPlentyModal() {
+    document.getElementById('yearOfPlentyModal').style.display = 'none';
+    document.getElementById('yearOfPlentyResource1').value = '';
+    document.getElementById('yearOfPlentyResource2').value = '';
+  }
+
+  submitYearOfPlenty() {
+    const resource1 = document.getElementById('yearOfPlentyResource1').value;
+    const resource2 = document.getElementById('yearOfPlentyResource2').value;
+
+    if (!resource1 || !resource2) {
+      alert('Please select both resources');
+      return;
+    }
+
+    this.socket.emit('playYearOfPlenty', {
+      gameId: this.gameId,
+      resource1,
+      resource2
+    });
+    this.closeYearOfPlentyModal();
+  }
+
+  showMonopolyModal() {
+    document.getElementById('monopolyModal').style.display = 'flex';
+  }
+
+  closeMonopolyModal() {
+    document.getElementById('monopolyModal').style.display = 'none';
+    document.getElementById('monopolyResource').value = '';
+  }
+
+  submitMonopoly() {
+    const resource = document.getElementById('monopolyResource').value;
+
+    if (!resource) {
+      alert('Please select a resource');
+      return;
+    }
+
+    this.socket.emit('playMonopoly', {
+      gameId: this.gameId,
+      resource
+    });
+    this.closeMonopolyModal();
   }
 }
 

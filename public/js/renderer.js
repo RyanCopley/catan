@@ -64,9 +64,9 @@ class BoardRenderer {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Check if we're in robber mode
+    // Check if we're in robber mode (either from rolling 7 or playing Knight card)
     const gameClient = window.gameClient;
-    const isRobberMode = gameClient && gameClient.gameState && gameClient.gameState.turnPhase === 'robber';
+    const isRobberMode = (gameClient && gameClient.gameState && gameClient.gameState.turnPhase === 'robber') || this.buildMode === 'robber';
 
     if (isRobberMode) {
       // Find hovered hex
@@ -133,7 +133,7 @@ class BoardRenderer {
     if (!this.board) return;
 
     const gameClient = window.gameClient;
-    const isRobberMode = gameClient && gameClient.gameState && gameClient.gameState.turnPhase === 'robber';
+    const isRobberMode = (gameClient && gameClient.gameState && gameClient.gameState.turnPhase === 'robber') || this.buildMode === 'robber';
 
     if (isRobberMode && this.hoveredHex) {
       // Handle hex click for robber movement

@@ -45,6 +45,15 @@
           <div id="currentTurn">Current Turn: <span id="currentPlayerName"></span></div>
           <div id="gamePhase">Phase: <span id="phaseText"></span></div>
         </div>
+        <div id="robberNotice" class="robber-notice" style="display: none;">
+          Click on a hex to move the robber!
+        </div>
+        <div id="knightNotice" class="robber-notice" style="display: none;">
+          Playing Knight Card - Click on a hex to move the robber!
+        </div>
+        <div id="roadBuildingNotice" class="robber-notice" style="display: none;">
+          <strong>Road Building:</strong> Click "Build Road" to place your free roads (<span id="freeRoadsRemaining">2</span> remaining)
+        </div>
         <div class="dice-container">
           <div id="diceResult"></div>
         </div>
@@ -59,7 +68,16 @@
           <div class="player-info">
             <h3>Your Info</h3>
             <div id="playerColor" class="color-indicator"></div>
-            <div id="victoryPoints">Victory Points: <span>0</span></div>
+            <div id="victoryPoints">
+              <h4>Victory Points: <span id="totalVP">0</span></h4>
+              <div id="vpBreakdown" class="vp-breakdown">
+                <div class="vp-item"><span class="vp-label">Settlements:</span> <span id="vpSettlements">0</span></div>
+                <div class="vp-item"><span class="vp-label">Cities:</span> <span id="vpCities">0</span></div>
+                <div class="vp-item" id="vpLongestRoadItem" style="display: none;"><span class="vp-label">Longest Road:</span> <span>+2</span></div>
+                <div class="vp-item" id="vpLargestArmyItem" style="display: none;"><span class="vp-label">Largest Army:</span> <span>+2</span></div>
+                <div class="vp-item" id="vpDevCardsItem" style="display: none;"><span class="vp-label">VP Cards:</span> <span id="vpDevCards">0</span></div>
+              </div>
+            </div>
             <div id="playerResources">
               <h4>Resources:</h4>
               <div class="resource-list">
@@ -69,6 +87,13 @@
                 <div class="resource">Wheat: <span id="wheat">0</span></div>
                 <div class="resource">Ore: <span id="ore">0</span></div>
               </div>
+            </div>
+          </div>
+
+          <div class="development-cards">
+            <h3>Development Cards (<span id="devCardCount">0</span>)</h3>
+            <div id="developmentCardsList" class="dev-cards-list">
+              <p class="no-cards">No development cards yet</p>
             </div>
           </div>
 
@@ -85,6 +110,9 @@
             </button>
             <button id="buildCityBtn" class="btn btn-action" disabled>
               Build City (2Wh 3O)
+            </button>
+            <button id="buyDevCardBtn" class="btn btn-action" disabled>
+              Buy Dev Card (S Wh O)
             </button>
             <button id="tradeBtn" class="btn btn-action" disabled>
               Trade with Players
@@ -275,6 +303,74 @@
         </div>
       </div>
     </div>
+
+    <!-- Year of Plenty Modal -->
+    <div id="yearOfPlentyModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Year of Plenty</h2>
+          <span class="close-modal" id="closeYearOfPlentyBtn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <p>Choose 2 resources from the bank:</p>
+          <div class="trade-section">
+            <h3>First Resource:</h3>
+            <select id="yearOfPlentyResource1">
+              <option value="">Select Resource</option>
+              <option value="wood">Wood</option>
+              <option value="brick">Brick</option>
+              <option value="sheep">Sheep</option>
+              <option value="wheat">Wheat</option>
+              <option value="ore">Ore</option>
+            </select>
+          </div>
+          <div class="trade-section">
+            <h3>Second Resource:</h3>
+            <select id="yearOfPlentyResource2">
+              <option value="">Select Resource</option>
+              <option value="wood">Wood</option>
+              <option value="brick">Brick</option>
+              <option value="sheep">Sheep</option>
+              <option value="wheat">Wheat</option>
+              <option value="ore">Ore</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="submitYearOfPlentyBtn" class="btn btn-primary">Take Resources</button>
+          <button id="cancelYearOfPlentyBtn" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monopoly Modal -->
+    <div id="monopolyModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Monopoly</h2>
+          <span class="close-modal" id="closeMonopolyBtn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <p>Choose a resource to take from all other players:</p>
+          <div class="trade-section">
+            <h3>Resource Type:</h3>
+            <select id="monopolyResource">
+              <option value="">Select Resource</option>
+              <option value="wood">Wood</option>
+              <option value="brick">Brick</option>
+              <option value="sheep">Sheep</option>
+              <option value="wheat">Wheat</option>
+              <option value="ore">Ore</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="submitMonopolyBtn" class="btn btn-primary">Take All</button>
+          <button id="cancelMonopolyBtn" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
