@@ -1,0 +1,366 @@
+class BoardRenderer {
+  constructor(canvasId) {
+    this.canvas = document.getElementById(canvasId);
+    this.ctx = this.canvas.getContext('2d');
+    this.board = null;
+    this.scale = 60;
+    this.offsetX = 400;
+    this.offsetY = 350;
+    this.selectedVertex = null;
+    this.selectedEdge = null;
+    this.buildMode = null; // 'settlement', 'road', 'city'
+    this.hoveredVertex = null;
+    this.hoveredEdge = null;
+
+    this.colors = {
+      forest: '#228B22',
+      pasture: '#90EE90',
+      fields: '#FFD700',
+      hills: '#CD853F',
+      mountains: '#808080',
+      desert: '#DEB887',
+      water: '#4a90a4'
+    };
+
+    this.playerColors = {
+      red: '#ff6b6b',
+      blue: '#4dabf7',
+      white: '#f8f9fa',
+      orange: '#ff922b'
+    };
+
+    this.setupEventListeners();
+  }
+
+  setupEventListeners() {
+    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+    this.canvas.addEventListener('click', (e) => this.handleClick(e));
+  }
+
+  setBoard(board) {
+    this.board = board;
+    this.render();
+  }
+
+  setBuildMode(mode) {
+    this.buildMode = mode;
+    this.selectedVertex = null;
+    this.selectedEdge = null;
+  }
+
+  clearBuildMode() {
+    this.buildMode = null;
+    this.selectedVertex = null;
+    this.selectedEdge = null;
+    this.hoveredVertex = null;
+    this.hoveredEdge = null;
+    this.render();
+  }
+
+  handleMouseMove(e) {
+    if (!this.board || !this.buildMode) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (this.buildMode === 'settlement' || this.buildMode === 'city') {
+      // Find nearest vertex
+      let minDist = 20;
+      this.hoveredVertex = null;
+
+      this.board.vertices.forEach(vertex => {
+        const screenPos = this.hexToScreen(vertex.x, vertex.y);
+        const dist = Math.sqrt((x - screenPos.x) ** 2 + (y - screenPos.y) ** 2);
+        if (dist < minDist) {
+          minDist = dist;
+          this.hoveredVertex = vertex;
+        }
+      });
+
+      this.render();
+    } else if (this.buildMode === 'road') {
+      // Find nearest edge
+      let minDist = 15;
+      this.hoveredEdge = null;
+
+      this.board.edges.forEach(edge => {
+        const p1 = this.hexToScreen(edge.v1.x, edge.v1.y);
+        const p2 = this.hexToScreen(edge.v2.x, edge.v2.y);
+        const dist = this.pointToLineDistance(x, y, p1.x, p1.y, p2.x, p2.y);
+        if (dist < minDist) {
+          minDist = dist;
+          this.hoveredEdge = edge;
+        }
+      });
+
+      this.render();
+    }
+  }
+
+  handleClick(e) {
+    if (!this.board || !this.buildMode) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (this.buildMode === 'settlement' || this.buildMode === 'city') {
+      if (this.hoveredVertex) {
+        this.selectedVertex = this.hoveredVertex;
+        if (window.gameClient) {
+          window.gameClient.handleVertexClick(this.selectedVertex);
+        }
+      }
+    } else if (this.buildMode === 'road') {
+      if (this.hoveredEdge) {
+        this.selectedEdge = this.hoveredEdge;
+        if (window.gameClient) {
+          window.gameClient.handleEdgeClick(this.selectedEdge);
+        }
+      }
+    }
+  }
+
+  pointToLineDistance(px, py, x1, y1, x2, y2) {
+    const A = px - x1;
+    const B = py - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+
+    if (lenSq !== 0) param = dot / lenSq;
+
+    let xx, yy;
+
+    if (param < 0) {
+      xx = x1;
+      yy = y1;
+    } else if (param > 1) {
+      xx = x2;
+      yy = y2;
+    } else {
+      xx = x1 + param * C;
+      yy = y1 + param * D;
+    }
+
+    const dx = px - xx;
+    const dy = py - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  hexToScreen(hexX, hexY) {
+    return {
+      x: this.offsetX + hexX * this.scale,
+      y: this.offsetY + hexY * this.scale
+    };
+  }
+
+  render() {
+    if (!this.board) return;
+
+    // Clear canvas
+    this.ctx.fillStyle = this.colors.water;
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Draw hexes
+    this.board.hexes.forEach(hex => {
+      this.drawHex(hex);
+    });
+
+    // Draw edges (roads)
+    this.board.edges.forEach(edge => {
+      this.drawEdge(edge);
+    });
+
+    // Draw vertices (settlements/cities)
+    this.board.vertices.forEach(vertex => {
+      this.drawVertex(vertex);
+    });
+
+    // Draw hovered elements
+    if (this.hoveredVertex) {
+      const pos = this.hexToScreen(this.hoveredVertex.x, this.hoveredVertex.y);
+      this.ctx.strokeStyle = '#ffff00';
+      this.ctx.lineWidth = 3;
+      this.ctx.beginPath();
+      this.ctx.arc(pos.x, pos.y, 12, 0, Math.PI * 2);
+      this.ctx.stroke();
+    }
+
+    if (this.hoveredEdge) {
+      const p1 = this.hexToScreen(this.hoveredEdge.v1.x, this.hoveredEdge.v1.y);
+      const p2 = this.hexToScreen(this.hoveredEdge.v2.x, this.hoveredEdge.v2.y);
+      this.ctx.strokeStyle = '#ffff00';
+      this.ctx.lineWidth = 6;
+      this.ctx.beginPath();
+      this.ctx.moveTo(p1.x, p1.y);
+      this.ctx.lineTo(p2.x, p2.y);
+      this.ctx.stroke();
+    }
+  }
+
+  drawHex(hex) {
+    // Convert axial coordinates (q, r) to screen coordinates
+    // Using flat-topped hexagon layout
+    const size = this.scale;
+    const x = size * (3/2 * hex.q);
+    const y = size * (Math.sqrt(3)/2 * hex.q + Math.sqrt(3) * hex.r);
+
+    const centerX = this.offsetX + x;
+    const centerY = this.offsetY + y;
+
+    // Draw hexagon (flat-topped, starting from right vertex)
+    this.ctx.fillStyle = this.colors[hex.terrain];
+    this.ctx.strokeStyle = '#333';
+    this.ctx.lineWidth = 2;
+
+    this.ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = Math.PI / 3 * i;
+      const vx = centerX + size * Math.cos(angle);
+      const vy = centerY + size * Math.sin(angle);
+      if (i === 0) {
+        this.ctx.moveTo(vx, vy);
+      } else {
+        this.ctx.lineTo(vx, vy);
+      }
+    }
+    this.ctx.closePath();
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    // Draw number token
+    if (hex.number) {
+      this.ctx.fillStyle = '#f0e68c';
+      this.ctx.beginPath();
+      this.ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      this.ctx.fillStyle = hex.number === 6 || hex.number === 8 ? '#ff0000' : '#000';
+      this.ctx.font = 'bold 18px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(hex.number.toString(), centerX, centerY);
+
+      // Draw dots
+      const dots = hex.number === 6 || hex.number === 8 ? 5 :
+                   hex.number === 5 || hex.number === 9 ? 4 :
+                   hex.number === 4 || hex.number === 10 ? 3 :
+                   hex.number === 3 || hex.number === 11 ? 2 : 1;
+
+      this.ctx.fillStyle = '#000';
+      for (let i = 0; i < dots; i++) {
+        this.ctx.beginPath();
+        this.ctx.arc(centerX - 10 + i * 5, centerY + 15, 2, 0, Math.PI * 2);
+        this.ctx.fill();
+      }
+    }
+
+    // Draw robber
+    if (hex.hasRobber) {
+      this.ctx.fillStyle = '#000';
+      this.ctx.beginPath();
+      this.ctx.arc(centerX, centerY, 15, 0, Math.PI * 2);
+      this.ctx.fill();
+
+      this.ctx.fillStyle = '#fff';
+      this.ctx.font = 'bold 12px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText('R', centerX, centerY);
+    }
+  }
+
+  drawVertex(vertex) {
+    const pos = this.hexToScreen(vertex.x, vertex.y);
+
+    if (vertex.building === 'settlement') {
+      // Draw settlement (small house shape)
+      const color = this.playerColors[this.getPlayerColor(vertex.playerId)];
+      this.ctx.fillStyle = color;
+      this.ctx.strokeStyle = '#000';
+      this.ctx.lineWidth = 2;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(pos.x, pos.y - 8);
+      this.ctx.lineTo(pos.x + 6, pos.y - 2);
+      this.ctx.lineTo(pos.x + 6, pos.y + 6);
+      this.ctx.lineTo(pos.x - 6, pos.y + 6);
+      this.ctx.lineTo(pos.x - 6, pos.y - 2);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+    } else if (vertex.building === 'city') {
+      // Draw city (larger building)
+      const color = this.playerColors[this.getPlayerColor(vertex.playerId)];
+      this.ctx.fillStyle = color;
+      this.ctx.strokeStyle = '#000';
+      this.ctx.lineWidth = 2;
+
+      // Two towers
+      this.ctx.fillRect(pos.x - 8, pos.y - 4, 6, 10);
+      this.ctx.strokeRect(pos.x - 8, pos.y - 4, 6, 10);
+      this.ctx.fillRect(pos.x + 2, pos.y - 8, 6, 14);
+      this.ctx.strokeRect(pos.x + 2, pos.y - 8, 6, 14);
+    } else if (!this.buildMode || (this.buildMode && this.hoveredVertex !== vertex)) {
+      // Draw empty vertex point (small)
+      this.ctx.fillStyle = '#fff';
+      this.ctx.strokeStyle = '#666';
+      this.ctx.lineWidth = 1;
+      this.ctx.beginPath();
+      this.ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.stroke();
+    }
+  }
+
+  drawEdge(edge) {
+    const p1 = this.hexToScreen(edge.v1.x, edge.v1.y);
+    const p2 = this.hexToScreen(edge.v2.x, edge.v2.y);
+
+    if (edge.road) {
+      const color = this.playerColors[this.getPlayerColor(edge.playerId)];
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = 5;
+      this.ctx.lineCap = 'round';
+      this.ctx.beginPath();
+      this.ctx.moveTo(p1.x, p1.y);
+      this.ctx.lineTo(p2.x, p2.y);
+      this.ctx.stroke();
+
+      // Black outline
+      this.ctx.strokeStyle = '#000';
+      this.ctx.lineWidth = 7;
+      this.ctx.globalAlpha = 0.3;
+      this.ctx.beginPath();
+      this.ctx.moveTo(p1.x, p1.y);
+      this.ctx.lineTo(p2.x, p2.y);
+      this.ctx.stroke();
+      this.ctx.globalAlpha = 1;
+    }
+  }
+
+  getPlayerColor(playerId) {
+    // This should be provided by the game state
+    // For now, return a default
+    if (window.gameClient && window.gameClient.gameState) {
+      const player = window.gameClient.gameState.players.find(p => p.id === playerId);
+      return player ? player.color : 'white';
+    }
+    return 'white';
+  }
+
+  addLogMessage(message) {
+    const log = document.getElementById('gameLog');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+}

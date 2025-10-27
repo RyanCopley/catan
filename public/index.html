@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catan Online</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Main Menu -->
+    <div id="menu" class="screen active">
+      <div class="menu-container">
+        <h1>Catan Online</h1>
+        <div class="menu-content">
+          <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+          <button id="createGameBtn" class="btn btn-primary">Create New Game</button>
+          <div class="divider">OR</div>
+          <input type="text" id="gameId" placeholder="Enter Game ID" maxlength="6">
+          <button id="joinGameBtn" class="btn btn-secondary">Join Game</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lobby Screen -->
+    <div id="lobby" class="screen">
+      <div class="lobby-container">
+        <h2>Game Lobby</h2>
+        <div class="game-id-display">
+          Game ID: <span id="lobbyGameId"></span>
+        </div>
+        <div class="players-list">
+          <h3>Players:</h3>
+          <ul id="playersList"></ul>
+        </div>
+        <button id="startGameBtn" class="btn btn-primary">Start Game</button>
+        <button id="leaveLobbyBtn" class="btn btn-secondary">Leave</button>
+      </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game" class="screen">
+      <div class="game-header">
+        <div class="game-info">
+          <div id="currentTurn">Current Turn: <span id="currentPlayerName"></span></div>
+          <div id="gamePhase">Phase: <span id="phaseText"></span></div>
+        </div>
+        <div class="dice-container">
+          <div id="diceResult"></div>
+        </div>
+      </div>
+
+      <div class="game-main">
+        <div class="board-container">
+          <canvas id="gameBoard" width="800" height="700"></canvas>
+        </div>
+
+        <div class="sidebar">
+          <div class="player-info">
+            <h3>Your Info</h3>
+            <div id="playerColor" class="color-indicator"></div>
+            <div id="victoryPoints">Victory Points: <span>0</span></div>
+            <div id="playerResources">
+              <h4>Resources:</h4>
+              <div class="resource-list">
+                <div class="resource">Wood: <span id="wood">0</span></div>
+                <div class="resource">Brick: <span id="brick">0</span></div>
+                <div class="resource">Sheep: <span id="sheep">0</span></div>
+                <div class="resource">Wheat: <span id="wheat">0</span></div>
+                <div class="resource">Ore: <span id="ore">0</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <h3>Actions</h3>
+            <button id="rollDiceBtn" class="btn btn-action" disabled>
+              Roll Dice
+            </button>
+            <button id="buildSettlementBtn" class="btn btn-action" disabled>
+              Build Settlement (W B S Wh)
+            </button>
+            <button id="buildRoadBtn" class="btn btn-action" disabled>
+              Build Road (W B)
+            </button>
+            <button id="buildCityBtn" class="btn btn-action" disabled>
+              Build City (2Wh 3O)
+            </button>
+            <button id="tradeBtn" class="btn btn-action" disabled>
+              Trade
+            </button>
+            <button id="endTurnBtn" class="btn btn-action" disabled>
+              End Turn
+            </button>
+          </div>
+
+          <div class="players-status">
+            <h3>All Players</h3>
+            <div id="playersStatus"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="message-log">
+        <div id="gameLog"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/client.js"></script>
+  <script src="/js/renderer.js"></script>
+</body>
+</html>
