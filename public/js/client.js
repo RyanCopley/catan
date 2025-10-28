@@ -105,6 +105,12 @@ class GameClient {
       } else if (this.gameState.phase === 'setup' || this.gameState.phase === 'playing') {
         this.showGame();
         this.updateGameUI();
+
+        // Check if we need to show discard modal after reconnecting
+        const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+        if (myPlayer && myPlayer.mustDiscard > 0) {
+          this.showDiscardModal(myPlayer.mustDiscard, myPlayer.resources);
+        }
       }
     });
 
