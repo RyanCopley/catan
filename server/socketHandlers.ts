@@ -272,6 +272,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (!game) return;
 
     const result = game.rollDice(socket.id);
+    game.updateActivity();
     await saveGameToCache(gameId, game);
     io.to(gameId).emit('diceRolled', { game: game.getState(), diceResult: result });
   });
@@ -282,6 +283,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     const success = game.buildSettlement(socket.id, vertex);
     if (success) {
+      game.updateActivity();
       await saveGameToCache(gameId, game);
       io.to(gameId).emit('settlementBuilt', { game: game.getState(), vertex, playerId: socket.id });
     } else {
@@ -295,6 +297,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     const success = game.buildRoad(socket.id, edge);
     if (success) {
+      game.updateActivity();
       await saveGameToCache(gameId, game);
       io.to(gameId).emit('roadBuilt', { game: game.getState(), edge, playerId: socket.id });
     } else {
@@ -308,6 +311,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     const success = game.buildCity(socket.id, vertex);
     if (success) {
+      game.updateActivity();
       await saveGameToCache(gameId, game);
       io.to(gameId).emit('cityBuilt', { game: game.getState(), vertex, playerId: socket.id });
     } else {
@@ -320,6 +324,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (!game) return;
 
     game.endTurn(socket.id);
+    game.updateActivity();
 
     // Check if game just finished and save to history
     if (game.phase === 'finished') {
@@ -339,6 +344,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     const offer = game.createTradeOffer(socket.id, targetPlayerId, offering, requesting);
     if (offer) {
+      game.updateActivity();
       await saveGameToCache(gameId, game);
       io.to(gameId).emit('tradeOffered', { game: game.getState(), offer });
     } else {
@@ -352,6 +358,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     const result = game.respondToTrade(offerId, socket.id, response);
     if (result.success) {
+      game.updateActivity();
       await saveGameToCache(gameId, game);
       io.to(gameId).emit('tradeResponseUpdated', { game: game.getState(), offerId, playerId: socket.id, response });
     } else {
@@ -365,6 +372,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     const result = game.confirmTrade(offerId, socket.id, acceptingPlayerId);
     if (result.success) {
+      game.updateActivity();
       await saveGameToCache(gameId, game);
       io.to(gameId).emit('tradeExecuted', {
         game: game.getState(),
@@ -393,6 +401,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     const result = game.tradeWithBank(socket.id, givingResource, receivingResource, amount);
     if (result.success) {
+      game.updateActivity();
       await saveGameToCache(gameId, game);
       io.to(gameId).emit('bankTradeExecuted', {
         game: game.getState(),
@@ -461,6 +470,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     const result = game.buyDevelopmentCard(socket.id);
     if (result.success) {
+      game.updateActivity();
       await saveGameToCache(gameId, game);
       const player = game.players.find(p => p.id === socket.id);
       socket.emit('developmentCardBought', {

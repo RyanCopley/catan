@@ -7,6 +7,7 @@ import { Game } from './game';
 import { setupSocketHandlers } from './socketHandlers';
 import { gameCache } from './cache';
 import { createAdminRouter } from './adminRoutes';
+import { GameCleanupService } from './gameCleanup';
 import dotenv from 'dotenv';
 
 // Load environment variables
@@ -34,8 +35,11 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Store active games
 const games = new Map<string, Game>();
 
-// Admin routes (pass io for socket notifications)
-app.use('/admin', createAdminRouter(games, io));
+// Initialize cleanup service
+const cleanupService = new GameCleanupService(io, games);
+
+// Admin routes (pass io for socket notifications and cleanup service)
+app.use('/admin', createAdminRouter(games, io, cleanupService));
 
 // Initialize Redis cache and load existing games
 gameCache.connect().then(async () => {
@@ -58,6 +62,9 @@ gameCache.connect().then(async () => {
     }
 
     console.log(`Server ready with ${games.size} active games`);
+
+    // Start cleanup service
+    cleanupService.start();
   } catch (err) {
     console.error('Failed to load games from cache:', err);
   }
@@ -77,6 +84,7 @@ server.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...');
+  cleanupService.stop();
   await gameCache.disconnect();
   process.exit(0);
 });

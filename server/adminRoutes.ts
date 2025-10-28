@@ -5,7 +5,7 @@ import { Game } from './game';
 import { gameCache } from './cache';
 import path from 'path';
 
-export function createAdminRouter(games: Map<string, Game>, io: Server) {
+export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupService?: any) {
   const router = Router();
 
   // Serve admin panel HTML
@@ -119,6 +119,34 @@ export function createAdminRouter(games: Map<string, Game>, io: Server) {
     } catch (err) {
       console.error('Failed to update game state:', err);
       res.status(500).json({ error: 'Failed to update game state' });
+    }
+  });
+
+  // Get game inactivity stats
+  router.get('/cleanup/stats', requireAdmin, (req: Request, res: Response) => {
+    if (!cleanupService) {
+      return res.status(503).json({ error: 'Cleanup service not available' });
+    }
+
+    const stats = cleanupService.getInactivityStats();
+    res.json({ stats });
+  });
+
+  // Manually trigger cleanup
+  router.post('/cleanup/trigger', requireAdmin, async (req: Request, res: Response) => {
+    if (!cleanupService) {
+      return res.status(503).json({ error: 'Cleanup service not available' });
+    }
+
+    try {
+      const result = await cleanupService.triggerCleanup();
+      res.json({
+        success: true,
+        message: `Checked ${result.checked} games, cleaned up ${result.cleaned} abandoned games`
+      });
+    } catch (err) {
+      console.error('Manual cleanup failed:', err);
+      res.status(500).json({ error: 'Cleanup failed' });
     }
   });
 

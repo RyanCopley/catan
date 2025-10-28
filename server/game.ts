@@ -26,6 +26,7 @@ export class Game {
   setupRoadPlaced: boolean;
   devCardPlayedThisTurn: boolean;
   startedAt: number | null;
+  lastActivityAt: number;
 
   private tradeManager: TradeManager;
   private devCardManager: DevelopmentCardManager;
@@ -44,6 +45,7 @@ export class Game {
     this.setupRoadPlaced = false;
     this.devCardPlayedThisTurn = false;
     this.startedAt = null;
+    this.lastActivityAt = Date.now();
 
     this.tradeManager = new TradeManager();
     this.devCardManager = new DevelopmentCardManager();
@@ -92,6 +94,7 @@ export class Game {
     if (!player) return false;
 
     player.id = newSocketId;
+    this.lastActivityAt = Date.now();
 
     if (this.board) {
       this.board.vertices.forEach(v => {
@@ -518,6 +521,10 @@ export class Game {
       tradeOffers: this.tradeManager.getTradeOffers(),
       developmentCardDeck: this.devCardManager.getDeck()
     };
+  }
+
+  updateActivity(): void {
+    this.lastActivityAt = Date.now();
   }
 
   restoreState(state: GameState): void {
