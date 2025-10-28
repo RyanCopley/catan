@@ -1,5 +1,6 @@
 let socket;
 let currentEditingGameId = null;
+let metricsInterval = null;
 
 // Helper function to format relative time
 function getRelativeTime(timestamp) {
@@ -41,6 +42,194 @@ function getActivityClass(timestamp) {
   }
 }
 
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return '0 B';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+
+  const precision = value >= 10 || unitIndex === 0 ? 0 : 1;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return 'N/A';
+  }
+
+  const totalSeconds = Math.floor(seconds);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  if (parts.length === 0) {
+    parts.push(`${remainingSeconds}s`);
+  }
+
+  return parts.join(' ');
+}
+
+function startMetricsPolling() {
+  if (metricsInterval) {
+    clearInterval(metricsInterval);
+  }
+
+  fetchSystemMetrics();
+  metricsInterval = setInterval(fetchSystemMetrics, 10000);
+}
+
+function stopMetricsPolling() {
+  if (metricsInterval) {
+    clearInterval(metricsInterval);
+    metricsInterval = null;
+  }
+}
+
+async function fetchSystemMetrics() {
+  const statusEl = document.getElementById('metricsStatus');
+  const errorEl = document.getElementById('metricsError');
+
+  if (statusEl) {
+    statusEl.textContent = 'Updating server metrics...';
+  }
+
+  if (errorEl) {
+    errorEl.textContent = '';
+    errorEl.style.display = 'none';
+  }
+
+  try {
+    const response = await fetch('/admin/system/metrics');
+
+    if (response.status === 401) {
+      stopMetricsPolling();
+      showLoginScreen();
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    renderSystemMetrics(data.metrics);
+
+    if (statusEl) {
+      const generatedAt = data.metrics?.generatedAt ? new Date(data.metrics.generatedAt) : new Date();
+      const isValidDate = !Number.isNaN(generatedAt.getTime());
+      const formattedTime = isValidDate ? generatedAt.toLocaleTimeString() : 'just now';
+      const uptime = formatDuration(data.metrics?.uptimeSeconds ?? 0);
+      statusEl.textContent = `Last updated ${formattedTime} · Uptime ${uptime}`;
+    }
+  } catch (error) {
+    console.error('Failed to load system metrics:', error);
+    if (statusEl) {
+      statusEl.textContent = 'Unable to refresh server metrics';
+    }
+    if (errorEl) {
+      errorEl.textContent = 'Unable to load server metrics. Please try again later.';
+      errorEl.style.display = 'block';
+    }
+  }
+}
+
+function renderSystemMetrics(metrics) {
+  const metricsContainer = document.getElementById('systemMetrics');
+  const networkContainer = document.getElementById('networkMetrics');
+  const errorEl = document.getElementById('metricsError');
+
+  if (!metricsContainer || !networkContainer) {
+    return;
+  }
+
+  if (errorEl) {
+    errorEl.textContent = '';
+    errorEl.style.display = 'none';
+  }
+
+  const totalSystem = metrics?.memory?.totalSystem ?? 0;
+  const usedSystem = metrics?.memory?.usedSystem ?? 0;
+  const freeSystem = metrics?.memory?.freeSystem ?? 0;
+  const systemUsagePercent = totalSystem ? Math.min((usedSystem / totalSystem) * 100, 100) : 0;
+  const processRss = metrics?.processMemory?.rss ?? 0;
+  const processHeapUsed = metrics?.processMemory?.heapUsed ?? 0;
+  const processHeapTotal = metrics?.processMemory?.heapTotal ?? 0;
+  const processExternal = metrics?.processMemory?.external ?? 0;
+  const loadAverage = metrics?.cpu?.loadAverage ?? [];
+  const loadOne = loadAverage[0] ?? 0;
+  const loadFive = loadAverage[1] ?? 0;
+  const loadFifteen = loadAverage[2] ?? 0;
+  const cpuCores = metrics?.cpu?.coreCount ?? 0;
+  const cpuModel = metrics?.cpu?.model ?? '';
+  const uptimeSeconds = metrics?.uptimeSeconds ?? 0;
+  const nodeVersion = metrics?.nodeVersion ?? 'unknown';
+  const pid = metrics?.pid ?? '—';
+  const platform = metrics?.platform ?? '';
+
+  metricsContainer.innerHTML = `
+    <div class="metric-card">
+      <div class="metric-title">CPU Load</div>
+      <div class="metric-value">${loadOne.toFixed(2)}</div>
+      <div class="metric-subtext">
+        5m: ${loadFive.toFixed(2)} · 15m: ${loadFifteen.toFixed(2)}<br>
+        Cores: ${cpuCores}${cpuModel ? ` · ${cpuModel}` : ''}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">System Memory</div>
+      <div class="metric-value">${formatBytes(usedSystem)} / ${formatBytes(totalSystem)}</div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: ${systemUsagePercent.toFixed(0)}%"></div>
+      </div>
+      <div class="metric-subtext">${systemUsagePercent.toFixed(1)}% used · ${formatBytes(freeSystem)} free</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">Process Memory (RSS)</div>
+      <div class="metric-value">${formatBytes(processRss)}</div>
+      <div class="metric-subtext">
+        Heap: ${formatBytes(processHeapUsed)} / ${formatBytes(processHeapTotal)}<br>
+        External: ${formatBytes(processExternal)}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">Runtime</div>
+      <div class="metric-value">${formatDuration(uptimeSeconds)}</div>
+      <div class="metric-subtext">Node ${nodeVersion} · PID ${pid}${platform ? ` · ${platform}` : ''}</div>
+    </div>
+  `;
+
+  if (metrics?.network && metrics.network.length > 0) {
+    networkContainer.innerHTML = `
+      <h3>Network Interfaces</h3>
+      <ul class="network-list">
+        ${metrics.network.map((iface) => `
+          <li class="network-card">
+            <h4>${iface.name} (${iface.family})</h4>
+            <p><strong>Address:</strong> ${iface.address}</p>
+            <p><strong>MAC:</strong> ${iface.mac}</p>
+            <p><strong>Netmask:</strong> ${iface.netmask}${iface.cidr ? ` / ${iface.cidr}` : ''}</p>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+  } else {
+    networkContainer.innerHTML = '<div class="network-empty">No external network interfaces detected.</div>';
+  }
+}
+
 // Check authentication on load
 async function checkAuth() {
   try {
@@ -61,6 +250,7 @@ async function checkAuth() {
 }
 
 function showLoginScreen() {
+  stopMetricsPolling();
   document.getElementById('loginScreen').style.display = 'block';
   document.getElementById('adminPanel').style.display = 'none';
 }
@@ -68,6 +258,7 @@ function showLoginScreen() {
 function showAdminPanel() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminPanel').style.display = 'block';
+  startMetricsPolling();
 }
 
 // Login form handler

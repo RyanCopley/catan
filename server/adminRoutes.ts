@@ -4,6 +4,7 @@ import { validateAdminCredentials, requireAdmin } from './adminAuth';
 import { Game } from './game';
 import { gameCache } from './cache';
 import path from 'path';
+import os from 'os';
 
 export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupService?: any) {
   const router = Router();
@@ -149,6 +150,59 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
       console.error('Manual cleanup failed:', err);
       res.status(500).json({ error: 'Cleanup failed' });
     }
+  });
+
+  router.get('/system/metrics', requireAdmin, (_req: Request, res: Response) => {
+    const processMemory = process.memoryUsage();
+    const totalSystemMemory = os.totalmem();
+    const freeSystemMemory = os.freemem();
+    const usedSystemMemory = totalSystemMemory - freeSystemMemory;
+    const cpus = os.cpus();
+    const primaryCpu = cpus[0];
+    const networkInfo = os.networkInterfaces();
+
+    const network = Object.entries(networkInfo)
+      .flatMap(([name, infos]) =>
+        (infos || [])
+          .filter((info) => !info.internal)
+          .map((info) => ({
+            name,
+            address: info.address,
+            family: info.family,
+            mac: info.mac,
+            netmask: info.netmask,
+            cidr: info.cidr ?? null
+          }))
+      );
+
+    res.json({
+      metrics: {
+        generatedAt: new Date().toISOString(),
+        uptimeSeconds: process.uptime(),
+        nodeVersion: process.version,
+        platform: process.platform,
+        pid: process.pid,
+        cpu: {
+          coreCount: cpus.length,
+          model: primaryCpu?.model ?? 'Unknown',
+          speed: primaryCpu?.speed ?? 0,
+          loadAverage: os.loadavg()
+        },
+        memory: {
+          totalSystem: totalSystemMemory,
+          freeSystem: freeSystemMemory,
+          usedSystem: usedSystemMemory
+        },
+        processMemory: {
+          rss: processMemory.rss,
+          heapTotal: processMemory.heapTotal,
+          heapUsed: processMemory.heapUsed,
+          external: processMemory.external,
+          arrayBuffers: processMemory.arrayBuffers
+        },
+        network
+      }
+    });
   });
 
   return router;
