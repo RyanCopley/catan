@@ -17,6 +17,7 @@ class GameClient {
     this.hiddenOffers = new Set();
     this.hasRolledDice = false;
     this.isSpectator = false;
+    this.resetAwardTracking();
 
     this.loadPlayerDataFromStorage();
     this.setupSocketListeners();
@@ -138,6 +139,7 @@ class GameClient {
       this.gameId = data.gameId;
       this.playerId = data.playerId;
       this.gameState = data.game;
+      this.awardsInitialized = false;
       this.hasRolledDice = false;
       this.resetDiceDisplay();
       this.updateDiceVisibility();
@@ -149,6 +151,7 @@ class GameClient {
       this.gameId = data.gameId;
       this.playerId = null; // Spectators don't have a player ID
       this.gameState = data.game;
+      this.awardsInitialized = false;
       this.isSpectator = true;
 
       // Show game screen
@@ -166,6 +169,7 @@ class GameClient {
       this.gameId = data.gameId;
       this.playerId = data.playerId;
       this.gameState = data.game;
+      this.awardsInitialized = false;
       if (this.gameState && this.gameState.diceRoll !== null) {
         this.hasRolledDice = true;
       } else {
@@ -228,6 +232,7 @@ class GameClient {
 
     this.socket.on('gameStarted', (data) => {
       this.gameState = data.game;
+      this.awardsInitialized = false;
       this.hasRolledDice = false;
       this.resetDiceDisplay();
       this.showGame();
@@ -547,6 +552,7 @@ class GameClient {
       this.gameId = null;
       this.playerId = null;
       this.gameState = null;
+      this.resetAwardTracking();
     });
 
     // Game screen
@@ -1694,11 +1700,59 @@ class GameClient {
     });
   }
 
+  resetAwardTracking() {
+    this.awardsInitialized = false;
+    this.longestRoadHolderId = null;
+    this.largestArmyHolderId = null;
+  }
+
+  playAccomplishmentSound() {
+    const audio = new Audio('sounds/accomplishment.mp3');
+    audio.volume = 0.2;
+    audio.play();
+  }
+
+  checkSpecialAwards() {
+    if (!this.gameState || !this.gameState.players) return;
+
+    const longestHolder = this.gameState.players.find(player => player.longestRoad);
+    const largestHolder = this.gameState.players.find(player => player.largestArmy);
+
+    if (!this.awardsInitialized) {
+      this.longestRoadHolderId = longestHolder ? longestHolder.id : null;
+      this.largestArmyHolderId = largestHolder ? largestHolder.id : null;
+      this.awardsInitialized = true;
+      return;
+    }
+
+    const newLongestId = longestHolder ? longestHolder.id : null;
+    const newLargestId = largestHolder ? largestHolder.id : null;
+
+    let shouldPlaySound = false;
+
+    if (newLongestId && newLongestId !== this.longestRoadHolderId) {
+      shouldPlaySound = true;
+    }
+
+    if (newLargestId && newLargestId !== this.largestArmyHolderId) {
+      shouldPlaySound = true;
+    }
+
+    this.longestRoadHolderId = newLongestId;
+    this.largestArmyHolderId = newLargestId;
+
+    if (shouldPlaySound) {
+      this.playAccomplishmentSound();
+    }
+  }
+
   updateGameUI() {
     if (!this.gameState) return;
 
     const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
     const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+
+    this.checkSpecialAwards();
 
     if (this.gameState.phase === 'setup' && this.gameState.diceRoll === null) {
       this.hasRolledDice = false;
