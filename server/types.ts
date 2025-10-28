@@ -78,6 +78,7 @@ export interface Player {
   armySize: number;
   mustDiscard?: number;
   freeRoads?: number;
+  disconnected?: boolean;
 }
 
 export interface TradeOffer {

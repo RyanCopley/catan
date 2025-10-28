@@ -139,7 +139,13 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     if (existingPlayer) {
       console.log(`${playerName} reconnecting to game ${gameId}`);
-      game.reconnectPlayer(existingPlayer.id, socket.id);
+      const oldSocketId = existingPlayer.id;
+      game.reconnectPlayer(oldSocketId, socket.id);
+      // Find the player again after reconnection (socket ID has changed)
+      const reconnectedPlayer = game.players.find(p => p.id === socket.id);
+      if (reconnectedPlayer) {
+        reconnectedPlayer.disconnected = false;
+      }
       socket.join(gameId);
       socket.emit('gameJoined', { gameId, playerId: socket.id, game: game.getState() });
       io.to(gameId).emit('playerReconnected', { game: game.getState(), playerName });
@@ -493,12 +499,19 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
   socket.on('disconnect', async () => {
     console.log('Client disconnected:', socket.id);
 
-    games.forEach((game, gameId) => {
+    for (const [gameId, game] of games.entries()) {
       if (game.hasPlayer(socket.id)) {
-        io.to(gameId).emit('playerDisconnected', { playerId: socket.id });
+        // Mark player as disconnected
+        const player = game.players.find(p => p.id === socket.id);
+        if (player) {
+          player.disconnected = true;
+        }
+
+        await saveGameToCache(gameId, game);
+        io.to(gameId).emit('playerDisconnected', { playerId: socket.id, game: game.getState() });
         console.log(`Player ${socket.id} disconnected from game ${gameId} (phase: ${game.phase})`);
       }
-    });
+    }
 
     // Note: We no longer delete lobby games on disconnect
     // Games persist in cache and players can reconnect after deployment

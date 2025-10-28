@@ -148,8 +148,12 @@ class GameClient {
         this.hasRolledDice = true;
       }
       this.updateDiceVisibility();
-      if (this.gameState.phase === 'waiting' || this.gameState.phase === 'setup') {
+      if (this.gameState.phase === 'waiting') {
         this.updateLobby();
+      } else if (this.gameState.phase === 'setup') {
+        this.updateLobby();
+        // Also update scoreboard during setup phase
+        this.updateScoreboard();
       } else {
         this.updateGameUI();
         if (this.renderer) {
@@ -377,7 +381,14 @@ class GameClient {
     });
 
     this.socket.on('playerDisconnected', (data) => {
-      this.renderer.addLogMessage('A player disconnected');
+      this.gameState = data.game;
+      this.updateGameUI();
+      const player = this.gameState.players.find(p => p.id === data.playerId);
+      if (player) {
+        this.renderer.addLogMessage(`${player.name} disconnected`);
+      } else {
+        this.renderer.addLogMessage('A player disconnected');
+      }
     });
 
     this.socket.on('tradeOffered', (data) => {
@@ -1467,6 +1478,17 @@ class GameClient {
       const nameDiv = document.createElement('div');
       nameDiv.className = 'scoreboard-player-name';
       nameDiv.textContent = (player.id === this.playerId ? ' You' : player.name);
+
+      // Add disconnect indicator if player is disconnected
+      if (player.disconnected) {
+        const disconnectIndicator = document.createElement('span');
+        disconnectIndicator.className = 'disconnect-indicator';
+        disconnectIndicator.textContent = ' (Disconnected)';
+        disconnectIndicator.style.color = '#ff6b6b';
+        disconnectIndicator.style.fontSize = '0.9em';
+        disconnectIndicator.style.fontWeight = 'normal';
+        nameDiv.appendChild(disconnectIndicator);
+      }
 
       const badgesDiv = document.createElement('div');
       badgesDiv.className = 'scoreboard-badges-inline';
