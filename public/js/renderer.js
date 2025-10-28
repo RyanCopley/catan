@@ -433,25 +433,18 @@ class BoardRenderer {
     } else if (port.type === '2:1') {
       this.ctx.fillText('2:1', portX, portY - 4);
 
-      // Draw resource icon/letter
-      this.ctx.font = 'bold 10px Arial';
-      const resourceSymbol = {
-        wood: 'W',
-        brick: 'B',
-        sheep: 'S',
-        wheat: 'Wh',
-        ore: 'O'
-      };
-      const resourceColor = {
-        wood: '#228B22',
-        brick: '#CD853F',
-        sheep: '#90EE90',
-        wheat: '#FFD700',
-        ore: '#808080'
+      // Draw resource emoji
+      this.ctx.font = '10px Arial';
+      const resourceEmoji = {
+        wood: '🌲',
+        brick: '🧱',
+        sheep: '🐑',
+        wheat: '🌾',
+        ore: '⛰️'
       };
 
-      this.ctx.fillStyle = resourceColor[port.resource] || '#000';
-      this.ctx.fillText(resourceSymbol[port.resource] || '?', portX, portY + 7);
+      this.ctx.fillStyle = '#000';
+      this.ctx.fillText(resourceEmoji[port.resource] || '?', portX, portY + 7);
     }
   }
 
