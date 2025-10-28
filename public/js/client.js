@@ -1448,14 +1448,15 @@ class GameClient {
         badgesDiv.appendChild(badge);
       }
 
-      for (let i = 0; i < player.victoryPointCards; i++) {
-        const badge = document.createElement('span');
-        badge.className = 'victory-point';
-        badge.textContent = '⭐';
-        badge.title = 'Victory Point';
-        badgesDiv.appendChild(badge);
+      if (player.id === this.playerId) {
+        for (let i = 0; i < player.victoryPointCards; i++) {
+          const badge = document.createElement('span');
+          badge.className = 'victory-point';
+          badge.textContent = '⭐';
+          badge.title = 'Victory Point';
+          badgesDiv.appendChild(badge);
+        }
       }
-      
       header.appendChild(colorDiv);
       header.appendChild(nameDiv);
       if (badgesDiv.children.length > 0) {
