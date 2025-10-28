@@ -52,13 +52,19 @@ class GameClient {
         console.log('Reconnecting to game:', this.gameId);
         this.socket.emit('joinGame', { gameId: this.gameId, playerName: this.playerName });
       } else {
-        // Request open games list if on main menu
+        // Request open games list and history if on main menu
         this.socket.emit('getOpenGames');
+        this.socket.emit('getGameHistory');
       }
     });
 
     this.socket.on('openGamesList', (data) => {
       this.updateOpenGamesList(data.games);
+    });
+
+    this.socket.on('gameHistory', (data) => {
+      console.log('Received game history:', data.history);
+      this.updateGameHistory(data.history);
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -1188,12 +1194,110 @@ class GameClient {
     this.socket.emit('joinGame', { gameId, playerName });
   }
 
+  updateGameHistory(history) {
+    const gameHistoryList = document.getElementById('gameHistoryList');
+    gameHistoryList.innerHTML = '';
+
+    if (!history || history.length === 0) {
+      const noHistory = document.createElement('p');
+      noHistory.className = 'no-games-text';
+      noHistory.textContent = 'No completed games yet';
+      gameHistoryList.appendChild(noHistory);
+      return;
+    }
+
+    history.forEach(game => {
+      const historyItem = document.createElement('div');
+      historyItem.className = 'history-item';
+
+      const header = document.createElement('div');
+      header.className = 'history-header';
+
+      const winnerInfo = document.createElement('div');
+      winnerInfo.className = 'history-winner';
+
+      const colorDot = document.createElement('span');
+      colorDot.className = `history-color color-${game.winner.color}`;
+
+      const winnerText = document.createElement('span');
+      winnerText.textContent = `${game.winner.name} won!`;
+
+      winnerInfo.appendChild(colorDot);
+      winnerInfo.appendChild(winnerText);
+
+      const timeInfo = document.createElement('div');
+      timeInfo.className = 'history-time';
+      const completedDate = new Date(game.completedAt);
+      const now = new Date();
+      const diffMs = now - completedDate;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      let timeText;
+      if (diffMins < 1) {
+        timeText = 'Just now';
+      } else if (diffMins < 60) {
+        timeText = `${diffMins}m ago`;
+      } else if (diffHours < 24) {
+        timeText = `${diffHours}h ago`;
+      } else if (diffDays < 7) {
+        timeText = `${diffDays}d ago`;
+      } else {
+        timeText = completedDate.toLocaleDateString();
+      }
+      timeInfo.textContent = timeText;
+
+      header.appendChild(winnerInfo);
+      header.appendChild(timeInfo);
+
+      const players = document.createElement('div');
+      players.className = 'history-players';
+
+      // Sort players by victory points descending
+      const sortedPlayers = [...game.players].sort((a, b) => b.victoryPoints - a.victoryPoints);
+
+      sortedPlayers.forEach(player => {
+        const playerSpan = document.createElement('span');
+        playerSpan.className = 'history-player';
+
+        const playerColorDot = document.createElement('span');
+        playerColorDot.className = `history-color-small color-${player.color}`;
+
+        playerSpan.appendChild(playerColorDot);
+        playerSpan.appendChild(document.createTextNode(`${player.name} (${player.victoryPoints})`));
+        players.appendChild(playerSpan);
+      });
+
+      historyItem.appendChild(header);
+      historyItem.appendChild(players);
+
+      if (game.duration) {
+        const duration = document.createElement('div');
+        duration.className = 'history-duration';
+        const durationMins = Math.floor(game.duration / 60000);
+        const durationHours = Math.floor(durationMins / 60);
+        const remainingMins = durationMins % 60;
+
+        if (durationHours > 0) {
+          duration.textContent = `Duration: ${durationHours}h ${remainingMins}m`;
+        } else {
+          duration.textContent = `Duration: ${durationMins}m`;
+        }
+        historyItem.appendChild(duration);
+      }
+
+      gameHistoryList.appendChild(historyItem);
+    });
+  }
+
   showMenu() {
     document.getElementById('menu').classList.add('active');
     document.getElementById('lobby').classList.remove('active');
     document.getElementById('game').classList.remove('active');
-    // Request open games when showing menu
+    // Request open games and history when showing menu
     this.socket.emit('getOpenGames');
+    this.socket.emit('getGameHistory');
   }
 
   showLobby() {
@@ -1246,7 +1350,7 @@ class GameClient {
 
     // Clear all active/completed states
     document.querySelectorAll('.phase-step').forEach(step => {
-      step.classList.remove('active', 'completed');
+      step.classList.remove('active', 'completed', 'game-won', 'game-lost');
     });
     document.querySelectorAll('.phase-line').forEach(line => {
       line.classList.remove('completed');
@@ -1266,6 +1370,21 @@ class GameClient {
           phaseStep.classList.add('completed');
         } else if (index === currentIndex) {
           phaseStep.classList.add('active');
+
+          // Add win/loss styling to finished phase
+          if (phase === 'finished') {
+            const winner = this.gameState.players.find(p => p.victoryPoints >= 10);
+            const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+            if (winner && myPlayer) {
+              if (winner.id === myPlayer.id) {
+                phaseStep.classList.add('game-won');
+                phaseStep.textContent = 'Game Over - You Won!';
+              } else {
+                phaseStep.classList.add('game-lost');
+                phaseStep.textContent = 'Game Over - You Lost';
+              }
+            }
+          }
         }
       }
     });
@@ -1412,6 +1531,23 @@ class GameClient {
     const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
     const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
 
+    // Check for game over
+    if (this.gameState.phase === 'finished') {
+      const winner = this.gameState.players.find(p => p.victoryPoints >= 10);
+      if (winner && !this.gameOverSoundPlayed) {
+        this.gameOverSoundPlayed = true;
+        if (winner.id === this.playerId) {
+          const audio = new Audio('sounds/win.mp3');
+          audio.volume = 0.3;
+          audio.play();
+        } else {
+          const audio = new Audio('sounds/loss.mp3');
+          audio.volume = 0.3;
+          audio.play();
+        }
+      }
+    }
+
     // Update scoreboard
     this.updateScoreboard();
 
@@ -1469,7 +1605,8 @@ class GameClient {
     // Update buttons
     const isMyTurn = currentPlayer.id === this.playerId;
     const isSetup = this.gameState.phase === 'setup';
-    const canRoll = isMyTurn && this.gameState.turnPhase === 'roll' && !isSetup;
+    const isFinished = this.gameState.phase === 'finished';
+    const canRoll = isMyTurn && this.gameState.turnPhase === 'roll' && !isSetup && !isFinished;
 
     let canBuildSettlement = false;
     let canBuildRoad = false;

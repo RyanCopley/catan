@@ -41,6 +41,11 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     io.emit('openGamesList', { games: openGames });
   };
 
+  socket.on('getGameHistory', async () => {
+    const history = await gameCache.getGameHistory(10);
+    socket.emit('gameHistory', { history });
+  });
+
   socket.on('getOpenGames', () => {
     const openGames = Array.from(games.entries())
       .filter(([_, game]) => game.phase === 'waiting')
@@ -180,6 +185,15 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (!game) return;
 
     game.endTurn(socket.id);
+
+    // Check if game just finished and save to history
+    if (game.phase === 'finished') {
+      const history = game.createGameHistory();
+      if (history) {
+        await gameCache.saveGameHistory(history);
+      }
+    }
+
     await saveGameToCache(gameId, game);
     io.to(gameId).emit('turnEnded', { game: game.getState() });
   });

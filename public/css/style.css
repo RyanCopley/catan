@@ -173,6 +173,105 @@ input[type="text"]:focus {
   padding: 20px;
 }
 
+/* Game History Section */
+.game-history-section {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.game-history-section h3 {
+  color: #667eea;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.game-history-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f9f9f9;
+}
+
+.history-item {
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid #51cf66;
+  padding: 12px;
+  margin-bottom: 8px;
+  transition: box-shadow 0.2s;
+}
+
+.history-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.history-item:last-child {
+  margin-bottom: 0;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.history-winner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  color: #333;
+}
+
+.history-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  flex-shrink: 0;
+}
+
+.history-color-small {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  flex-shrink: 0;
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.history-time {
+  font-size: 12px;
+  color: #666;
+}
+
+.history-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.history-player {
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.history-duration {
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+}
+
 /* Lobby Screen */
 #lobby {
   justify-content: center;
@@ -339,6 +438,34 @@ input[type="text"]:focus {
 .phase-step.active .phase-label {
   opacity: 1;
   color: #ffd43b;
+}
+
+.phase-step.game-won .phase-dot {
+  background: #51cf66;
+  border-color: #51cf66;
+  box-shadow: 0 0 15px rgba(81, 207, 102, 0.8);
+  transform: scale(1.4);
+}
+
+.phase-step.game-won .phase-label {
+  opacity: 1;
+  color: #51cf66;
+  font-weight: bold;
+  font-size: 11px;
+}
+
+.phase-step.game-lost .phase-dot {
+  background: #ff6b6b;
+  border-color: #ff6b6b;
+  box-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
+  transform: scale(1.4);
+}
+
+.phase-step.game-lost .phase-label {
+  opacity: 1;
+  color: #ff6b6b;
+  font-weight: bold;
+  font-size: 11px;
 }
 
 .phase-line {

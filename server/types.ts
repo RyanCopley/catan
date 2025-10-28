@@ -90,6 +90,22 @@ export interface TradeOffer {
   acceptedBy: string[];
 }
 
+export interface GameHistory {
+  gameId: string;
+  winner: {
+    name: string;
+    color: PlayerColor;
+    victoryPoints: number;
+  };
+  players: {
+    name: string;
+    color: PlayerColor;
+    victoryPoints: number;
+  }[];
+  completedAt: number;
+  duration?: number;
+}
+
 export interface GameState {
   id: string;
   players: Player[];

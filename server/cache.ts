@@ -1,5 +1,5 @@
 import { createClient } from 'redis';
-import { GameState } from './types';
+import { GameState, GameHistory } from './types';
 import { Game } from './game';
 
 class GameCache {
@@ -100,6 +100,63 @@ class GameCache {
     if (this.connected) {
       await this.client.disconnect();
       this.connected = false;
+    }
+  }
+
+  // Game History Methods
+  async saveGameHistory(history: GameHistory): Promise<void> {
+    if (!this.connected) {
+      console.warn('Redis not connected, skipping history save');
+      return;
+    }
+
+    try {
+      // Save individual game history with score in sorted set for ordering
+      await this.client.zAdd('game:history', {
+        score: history.completedAt,
+        value: history.gameId
+      });
+
+      // Save the full history details
+      await this.client.set(
+        `game:history:${history.gameId}`,
+        JSON.stringify(history),
+        { EX: 2592000 } // Expire after 30 days
+      );
+
+      // Keep only the most recent 50 games
+      const count = await this.client.zCard('game:history');
+      if (count > 50) {
+        await this.client.zRemRangeByRank('game:history', 0, count - 51);
+      }
+    } catch (error) {
+      console.error(`Failed to save game history ${history.gameId}:`, error);
+    }
+  }
+
+  async getGameHistory(limit: number = 10): Promise<GameHistory[]> {
+    if (!this.connected) {
+      console.warn('Redis not connected, cannot retrieve game history');
+      return [];
+    }
+
+    try {
+      // Get most recent game IDs (sorted by timestamp descending)
+      const gameIds = await this.client.zRange('game:history', 0, limit - 1, { REV: true });
+
+      // Fetch all game history details
+      const histories: GameHistory[] = [];
+      for (const gameId of gameIds) {
+        const data = await this.client.get(`game:history:${gameId}`);
+        if (data) {
+          histories.push(JSON.parse(data) as GameHistory);
+        }
+      }
+
+      return histories;
+    } catch (error) {
+      console.error('Failed to retrieve game history:', error);
+      return [];
     }
   }
 }

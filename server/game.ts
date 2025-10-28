@@ -1,6 +1,6 @@
 import {
   GameState, Board, Player, DiceResult, Coordinate, Edge, HexCoordinate,
-  ResourceType, GamePhase, TurnPhase, Resources
+  ResourceType, GamePhase, TurnPhase, Resources, GameHistory
 } from './types';
 import { generateBoard } from './boardGenerator';
 import { createPlayer, getVictoryPoints } from './playerManager';
@@ -24,6 +24,7 @@ export class Game {
   setupSettlementPlaced: boolean;
   setupRoadPlaced: boolean;
   devCardPlayedThisTurn: boolean;
+  startedAt: number | null;
 
   private tradeManager: TradeManager;
   private devCardManager: DevelopmentCardManager;
@@ -40,6 +41,7 @@ export class Game {
     this.setupSettlementPlaced = false;
     this.setupRoadPlaced = false;
     this.devCardPlayedThisTurn = false;
+    this.startedAt = null;
 
     this.tradeManager = new TradeManager();
     this.devCardManager = new DevelopmentCardManager();
@@ -84,6 +86,7 @@ export class Game {
     this.devCardManager.initialize();
     this.phase = 'setup';
     this.turnPhase = 'place';
+    this.startedAt = Date.now();
     return true;
   }
 
@@ -491,5 +494,31 @@ export class Game {
     if (state.developmentCardDeck) {
       this.devCardManager.setDeck(state.developmentCardDeck);
     }
+  }
+
+  createGameHistory(): GameHistory | null {
+    if (this.phase !== 'finished') return null;
+
+    const winner = this.players.find(p => getVictoryPoints(p) >= 10);
+    if (!winner) return null;
+
+    const completedAt = Date.now();
+    const duration = this.startedAt ? completedAt - this.startedAt : undefined;
+
+    return {
+      gameId: this.id,
+      winner: {
+        name: winner.name,
+        color: winner.color,
+        victoryPoints: getVictoryPoints(winner)
+      },
+      players: this.players.map(p => ({
+        name: p.name,
+        color: p.color,
+        victoryPoints: getVictoryPoints(p)
+      })),
+      completedAt,
+      duration
+    };
   }
 }
