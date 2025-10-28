@@ -10,24 +10,29 @@
   <div id="app">
     <!-- Main Menu -->
     <div id="menu" class="screen active">
-      <div class="menu-container">
-        <h1>Catan Online</h1>
-        <div class="menu-content">
-          <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
-          <button id="createGameBtn" class="btn btn-primary">Create New Game</button>
-          <div class="divider">OR</div>
-          <input type="text" id="gameId" placeholder="Enter Game ID" maxlength="6">
-          <button id="joinGameBtn" class="btn btn-secondary">Join Game</button>
-          <div class="divider">OR</div>
-          <div class="open-games-section">
-            <h3>Open Games</h3>
-            <div id="openGamesList" class="open-games-list">
-              <p class="loading-text">Loading...</p>
+      <h1 class="menu-title">Catan Online</h1>
+      <div class="menu-cards">
+        <div class="menu-card">
+          <h2>Play!</h2>
+          <div class="menu-content">
+            <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+            <button id="createGameBtn" class="btn btn-primary">Create New Game</button>
+            <div class="divider">OR</div>
+            <input type="text" id="gameId" placeholder="Enter Game ID" maxlength="6">
+            <button id="joinGameBtn" class="btn btn-secondary">Join Game</button>
+            <div class="divider">OR</div>
+            <div class="open-games-section">
+              <h3>Open Games</h3>
+              <div id="openGamesList" class="open-games-list">
+                <p class="loading-text">Loading...</p>
+              </div>
             </div>
           </div>
-          <div class="game-history-section">
-            <h3>Recent Games</h3>
-            <div id="gameHistoryList" class="game-history-list">
+        </div>
+        <div class="menu-card">
+          <h2>Recent Games</h2>
+          <div class="game-history-list">
+            <div id="gameHistoryList" class="game-history-list-content">
               <p class="loading-text">Loading...</p>
             </div>
           </div>

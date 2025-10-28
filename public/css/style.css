@@ -28,24 +28,43 @@ body {
 
 /* Menu Screen */
 #menu {
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  padding: 40px 20px;
 }
 
-.menu-container {
+.menu-title {
+  color: white;
+  font-size: 64px;
+  margin-bottom: 40px;
+  text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.menu-cards {
+  display: flex;
+  gap: 30px;
+  max-width: 1200px;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.menu-card {
   background: white;
-  padding: 40px;
+  padding: 30px;
   border-radius: 15px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  text-align: center;
-  min-width: 400px;
+  flex: 1;
 }
 
-.menu-container h1 {
+.menu-card h2 {
   color: #667eea;
-  font-size: 48px;
-  margin-bottom: 30px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 32px;
+  margin-bottom: 20px;
+  text-align: center;
+  border-bottom: 3px solid #667eea;
+  padding-bottom: 10px;
 }
 
 .menu-content {
@@ -174,41 +193,28 @@ input[type="text"]:focus {
 }
 
 /* Game History Section */
-.game-history-section {
-  width: 100%;
-  margin-top: 20px;
-}
-
-.game-history-section h3 {
-  color: #667eea;
-  margin-bottom: 10px;
-  font-size: 18px;
-}
-
 .game-history-list {
-  max-height: 300px;
+  max-height: 600px;
   overflow-y: auto;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  padding: 10px;
-  background: #f9f9f9;
+}
+
+.game-history-list-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .history-item {
-  background: white;
+  background: #f8f9fa;
   border-radius: 6px;
   border-left: 4px solid #51cf66;
   padding: 12px;
-  margin-bottom: 8px;
   transition: box-shadow 0.2s;
 }
 
 .history-item:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.history-item:last-child {
-  margin-bottom: 0;
+  background: #e9ecef;
 }
 
 .history-header {
