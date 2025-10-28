@@ -2,9 +2,15 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
+import session from 'express-session';
 import { Game } from './game';
 import { setupSocketHandlers } from './socketHandlers';
 import { gameCache } from './cache';
+import { createAdminRouter } from './adminRoutes';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 const server = createServer(app);
@@ -12,11 +18,24 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'catan-admin-secret-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
+
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Store active games
 const games = new Map<string, Game>();
+
+// Admin routes (pass io for socket notifications)
+app.use('/admin', createAdminRouter(games, io));
 
 // Initialize Redis cache and load existing games
 gameCache.connect().then(async () => {

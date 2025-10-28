@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catan Admin Panel</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .login-box {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 400px;
+      margin: 100px auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-box h1 {
+      margin-bottom: 30px;
+      color: #333;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #555;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .error-message {
+      color: #f5576c;
+      text-align: center;
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
+    .admin-panel {
+      display: none;
+    }
+
+    .header {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      color: #333;
+      font-size: 28px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .header-actions button {
+      width: auto;
+      padding: 10px 20px;
+    }
+
+    .section {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .section h2 {
+      margin-bottom: 20px;
+      color: #333;
+      font-size: 22px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .game-card {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s;
+    }
+
+    .game-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .game-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .game-id {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      font-family: monospace;
+    }
+
+    .game-phase {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .phase-waiting {
+      background: #ffd700;
+      color: #8b6914;
+    }
+
+    .phase-setup {
+      background: #4facfe;
+      color: white;
+    }
+
+    .phase-playing {
+      background: #5dce8d;
+      color: white;
+    }
+
+    .phase-finished {
+      background: #a8a8a8;
+      color: white;
+    }
+
+    .game-info {
+      margin-bottom: 15px;
+      color: #555;
+      font-size: 14px;
+    }
+
+    .game-info div {
+      margin-bottom: 8px;
+    }
+
+    .players-list {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+
+    .players-list li {
+      margin-bottom: 4px;
+      color: #666;
+    }
+
+    .game-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .game-actions button {
+      flex: 1;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 15px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      color: #333;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 28px;
+      color: #999;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      line-height: 32px;
+      text-align: center;
+    }
+
+    .close-btn:hover {
+      color: #333;
+    }
+
+    .editor-container {
+      margin-bottom: 20px;
+    }
+
+    #stateEditor {
+      width: 100%;
+      height: 400px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 13px;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      resize: vertical;
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .editor-actions button {
+      width: auto;
+      padding: 10px 24px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-box">
+      <h1>🎲 Catan Admin</h1>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn">Login</button>
+        <div id="loginError" class="error-message"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Panel -->
+  <div id="adminPanel" class="admin-panel">
+    <div class="container">
+      <div class="header">
+        <h1>🎲 Catan Admin Panel</h1>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="refreshGames()">🔄 Refresh</button>
+          <button class="btn btn-danger" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🏠 Lobbies (Waiting)</h2>
+        <div id="lobbiesContainer" class="games-grid">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🎮 In-Progress Games</h2>
+        <div id="gamesContainer" class="games-grid">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit State Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Game State</h2>
+        <button class="close-btn" onclick="closeEditModal()">&times;</button>
+      </div>
+      <div class="editor-container">
+        <textarea id="stateEditor" spellcheck="false"></textarea>
+      </div>
+      <div class="editor-actions">
+        <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button class="btn" onclick="saveGameState()">Save & Resync</button>
+      </div>
+      <div id="editorError" class="error-message"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>
