@@ -88,6 +88,10 @@ class GameClient {
     });
 
     this.socket.on('diceRolled', (data) => {
+      var audio = new Audio('sounds/dice-roll.mp3');
+      audio.volume = 0.2;
+      audio.play();
+
       this.gameState = data.game;
       const result = data.diceResult;
       document.getElementById('diceResult').textContent = `${result.die1} + ${result.die2} = ${result.total}`;
@@ -153,6 +157,10 @@ class GameClient {
     });
 
     this.socket.on('settlementBuilt', (data) => {
+      var audio = new Audio('sounds/build.mp3');
+      audio.volume = 0.1;
+      audio.play();
+
       this.gameState = data.game;
       this.renderer.setBoard(this.gameState.board);
       this.renderer.clearBuildMode();
@@ -162,6 +170,9 @@ class GameClient {
     });
 
     this.socket.on('roadBuilt', (data) => {
+      var audio = new Audio('sounds/build.mp3');
+      audio.volume = 0.1;
+      audio.play();
       this.gameState = data.game;
       this.renderer.setBoard(this.gameState.board);
       this.renderer.clearBuildMode();
@@ -171,6 +182,9 @@ class GameClient {
     });
 
     this.socket.on('cityBuilt', (data) => {
+      var audio = new Audio('sounds/build.mp3');
+      audio.volume = 0.1;
+      audio.play();
       this.gameState = data.game;
       this.renderer.setBoard(this.gameState.board);
       this.renderer.clearBuildMode();
@@ -260,6 +274,16 @@ class GameClient {
       this.gameState = data.game;
       this.updateGameUI();
       const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
+
+      if (currentPlayer.id === this.playerId) {
+      
+        var audio = new Audio('sounds/your-turn.mp3');
+        audio.volume = 0.05;
+        audio.play();
+
+      }
+
+      
       this.renderer.addLogMessage(`${currentPlayer.name}'s turn`);
       document.getElementById('diceResult').textContent = '';
     });

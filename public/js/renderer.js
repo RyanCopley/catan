@@ -212,8 +212,6 @@ class BoardRenderer {
   render() {
     if (!this.board) return;
 
-    console.log(this);
-
     // Clear canvas
     this.ctx.fillStyle = this.colors.water;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -299,9 +297,6 @@ class BoardRenderer {
 
     // Draw hexagon (flat-topped, starting from right vertex)
     this.ctx.fillStyle = this.colors[hex.terrain];
-
-    console.log(hex.number, this.currentRoll);
-
     this.ctx.strokeStyle = '#333'; ;
     this.ctx.lineWidth = 2;
 
