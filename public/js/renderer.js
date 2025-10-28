@@ -311,12 +311,41 @@ class BoardRenderer {
       });
     }
 
-    // Draw edges (roads)
+    // Draw green borders for rolled hexes (before roads/buildings)
+    if (this.currentRoll) {
+      this.board.hexes.forEach(hex => {
+        if (hex.number === this.currentRoll) {
+          const size = this.scale;
+          const x = size * (3/2 * hex.q);
+          const y = size * (Math.sqrt(3)/2 * hex.q + Math.sqrt(3) * hex.r);
+          const centerX = this.offsetX + x;
+          const centerY = this.offsetY + y;
+
+          this.ctx.strokeStyle = '#00ff00';
+          this.ctx.lineWidth = 4;
+          this.ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const angle = Math.PI / 3 * i;
+            const vx = centerX + size * Math.cos(angle);
+            const vy = centerY + size * Math.sin(angle);
+            if (i === 0) {
+              this.ctx.moveTo(vx, vy);
+            } else {
+              this.ctx.lineTo(vx, vy);
+            }
+          }
+          this.ctx.closePath();
+          this.ctx.stroke();
+        }
+      });
+    }
+
+    // Draw edges (roads) - on top of green borders
     this.board.edges.forEach(edge => {
       this.drawEdge(edge);
     });
 
-    // Draw vertices (settlements/cities)
+    // Draw vertices (settlements/cities) - on top of green borders
     this.board.vertices.forEach(vertex => {
       this.drawVertex(vertex);
     });
@@ -380,7 +409,7 @@ class BoardRenderer {
 
     // Draw hexagon (flat-topped, starting from right vertex)
     this.ctx.fillStyle = this.colors[hex.terrain];
-    this.ctx.strokeStyle = '#333'; ;
+    this.ctx.strokeStyle = '#333';
     this.ctx.lineWidth = 2;
 
     this.ctx.beginPath();
@@ -402,11 +431,6 @@ class BoardRenderer {
     if (hex.number) {
       this.ctx.fillStyle = '#f0e68c';
       this.ctx.strokeStyle = '#333';
-
-      if (hex.number && this.currentRoll && hex.number === this.currentRoll) {
-          this.ctx.fillStyle = '#ff8181ff';
-          this.ctx.strokeStyle = '#ff0000';
-      }
 
       this.ctx.beginPath();
       this.ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
