@@ -77,6 +77,7 @@ input[type="text"]:focus {
   font-weight: bold;
 }
 
+
 .btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -534,6 +535,11 @@ input[type="text"]:focus {
   padding: 10px;
 }
 
+
+.btn-half {
+  width: 49%;
+}
+
 .players-status {
   margin-top: 20px;
 }
@@ -714,11 +720,12 @@ input[type="text"]:focus {
 
 .resource-selectors {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 15px;
 }
 
 .resource-selector {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -1039,4 +1046,71 @@ input[type="text"]:focus {
 .scoreboard-badge.largest-army {
   background: #ffe3e3;
   border-color: #ffa8a8;
+}
+
+/* Flashy and shiny effect when not disabled */
+#rollDiceBtn:not(:disabled) {
+  position: relative;
+  overflow: hidden; /* Keep pseudo-elements inside */
+  contain: paint;   /* Minor performance boost */
+  color: #222; /* Dark text for better contrast */
+  z-index: 0; /* Establish stacking context */
+}
+
+/* Pulse animation layer (under text, above background) */
+#rollDiceBtn:not(:disabled)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: #ffeb3b;
+  box-shadow: 0 0 10px #fff94d, 0 0 20px #ffd700, 0 0 30px #ffea00;
+  animation: pulseYellow 2s infinite alternate;
+  z-index: -1; /* Place behind text */
+}
+
+/* Shiny sweeping effect (smooth and seamless) */
+#rollDiceBtn:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: translateX(-150%);
+  animation: shineMove 2s linear infinite;
+  will-change: transform;
+  z-index: 1; /* Over text */
+}
+
+/* Hover pop effect */
+#rollDiceBtn:not(:disabled):hover {
+  transform: scale(1.08);
+}
+
+/* Pulse animation for the yellow glow */
+@keyframes pulseYellow {
+  0% {
+    background-color: #ffeb3b;
+    box-shadow: 0 0 10px #fff94d, 0 0 20px #ffd700;
+  }
+  100% {
+    background-color: #fff44f;
+    box-shadow: 0 0 20px #fff176, 0 0 40px #ffee58;
+  }
+}
+
+/* Smooth, seamless shine animation */
+@keyframes shineMove {
+  0% {
+    transform: translateX(-150%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
 }
