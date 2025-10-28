@@ -14,6 +14,7 @@ class GameClient {
     this.renderer = null;
     this.playerName = '';
     this.hiddenOffers = new Set();
+    this.hasRolledDice = false;
 
     this.setupSocketListeners();
     this.setupUIListeners();
@@ -95,6 +96,9 @@ class GameClient {
       this.gameId = data.gameId;
       this.playerId = data.playerId;
       this.gameState = data.game;
+      this.hasRolledDice = false;
+      this.resetDiceDisplay();
+      this.updateDiceVisibility();
       this.updateUrl();
       this.showLobby();
     });
@@ -103,6 +107,13 @@ class GameClient {
       this.gameId = data.gameId;
       this.playerId = data.playerId;
       this.gameState = data.game;
+      if (this.gameState && this.gameState.diceRoll !== null) {
+        this.hasRolledDice = true;
+      } else {
+        this.hasRolledDice = false;
+        this.resetDiceDisplay();
+      }
+      this.updateDiceVisibility();
       this.updateUrl();
 
       // Show appropriate screen based on game phase
@@ -133,6 +144,10 @@ class GameClient {
 
     this.socket.on('playerReconnected', (data) => {
       this.gameState = data.game;
+      if (this.gameState && this.gameState.diceRoll !== null) {
+        this.hasRolledDice = true;
+      }
+      this.updateDiceVisibility();
       if (this.gameState.phase === 'waiting' || this.gameState.phase === 'setup') {
         this.updateLobby();
       } else {
@@ -145,6 +160,8 @@ class GameClient {
 
     this.socket.on('gameStarted', (data) => {
       this.gameState = data.game;
+      this.hasRolledDice = false;
+      this.resetDiceDisplay();
       this.showGame();
       this.updateGameUI();
       this.renderer.addLogMessage('Game started!');
@@ -156,12 +173,14 @@ class GameClient {
       audio.play();
 
       this.gameState = data.game;
+      this.hasRolledDice = true;
       const result = data.diceResult;
 
       // Update dice display
       document.getElementById('die1').setAttribute('data-value', result.die1);
       document.getElementById('die2').setAttribute('data-value', result.die2);
       document.getElementById('diceTotal').textContent = result.total;
+      this.updateDiceVisibility();
 
       this.renderer.addLogMessage(`Dice rolled: ${result.total}`);
 
@@ -1317,6 +1336,28 @@ class GameClient {
     }
 
     this.renderer.setBoard(this.gameState.board);
+    this.updateDiceVisibility();
+  }
+
+  resetDiceDisplay() {
+    const die1 = document.getElementById('die1');
+    const die2 = document.getElementById('die2');
+    const diceTotal = document.getElementById('diceTotal');
+
+    if (die1) die1.removeAttribute('data-value');
+    if (die2) die2.removeAttribute('data-value');
+    if (diceTotal) diceTotal.textContent = '—';
+  }
+
+  updateDiceVisibility() {
+    const diceContainer = document.querySelector('.dice-container');
+    if (!diceContainer) return;
+
+    if (this.hasRolledDice) {
+      diceContainer.classList.remove('is-hidden');
+    } else {
+      diceContainer.classList.add('is-hidden');
+    }
   }
 
   updateLobby() {
@@ -1529,6 +1570,14 @@ class GameClient {
 
     const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
     const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+
+    if (this.gameState.phase === 'setup' && this.gameState.diceRoll === null) {
+      this.hasRolledDice = false;
+      this.resetDiceDisplay();
+    } else if (this.gameState.diceRoll !== null) {
+      this.hasRolledDice = true;
+    }
+    this.updateDiceVisibility();
 
     // Check for game over
     if (this.gameState.phase === 'finished') {
