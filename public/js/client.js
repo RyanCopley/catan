@@ -1203,7 +1203,7 @@ class GameClient {
       const badgesDiv = document.createElement('div');
       badgesDiv.className = 'scoreboard-badges-inline';
 
-      if (player.longestRoad || true) {
+      if (player.longestRoad) {
         const badge = document.createElement('span');
         badge.className = 'scoreboard-badge longest-road';
         badge.textContent = '🛣️';
