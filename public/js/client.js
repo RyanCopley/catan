@@ -1172,12 +1172,12 @@ class GameClient {
 
       const nameDiv = document.createElement('div');
       nameDiv.className = 'scoreboard-player-name';
-      nameDiv.textContent = player.name;
+      nameDiv.textContent = (player.id === this.playerId ? ' You' : player.name);
 
       const badgesDiv = document.createElement('div');
       badgesDiv.className = 'scoreboard-badges-inline';
 
-      if (player.longestRoad) {
+      if (player.longestRoad || true) {
         const badge = document.createElement('span');
         badge.className = 'scoreboard-badge longest-road';
         badge.textContent = '🛣️';
@@ -1193,6 +1193,14 @@ class GameClient {
         badgesDiv.appendChild(badge);
       }
 
+      for (let i = 0; i < player.victoryPointCards; i++) {
+        const badge = document.createElement('span');
+        badge.className = 'victory-point';
+        badge.textContent = '⭐';
+        badge.title = 'Victory Point';
+        badgesDiv.appendChild(badge);
+      }
+      
       header.appendChild(colorDiv);
       header.appendChild(nameDiv);
       if (badgesDiv.children.length > 0) {
