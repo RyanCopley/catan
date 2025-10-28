@@ -1221,11 +1221,11 @@ class GameClient {
 
   formatResources(resources) {
     const parts = [];
-    const resourceNames = { wood: 'W', brick: 'B', sheep: 'S', wheat: 'Wh', ore: 'O' };
+    const resourceEmojis = { wood: '🌲', brick: '🧱', sheep: '🐑', wheat: '🌾', ore: '⛰️' };
 
     for (const [resource, amount] of Object.entries(resources)) {
       if (amount > 0) {
-        parts.push(`${amount} ${resourceNames[resource]}`);
+        parts.push(`${amount} ${resourceEmojis[resource]}`);
       }
     }
 
