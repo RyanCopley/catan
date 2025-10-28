@@ -1,5 +1,6 @@
 let socket;
 let currentEditingGameId = null;
+let metricsInterval = null;
 
 // Helper function to format relative time
 function getRelativeTime(timestamp) {
@@ -41,6 +42,61 @@ function getActivityClass(timestamp) {
   }
 }
 
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) {
+    return 'N/A';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(value < 10 && unitIndex > 0 ? 1 : 0)} ${units[unitIndex]}`;
+}
+
+function formatPercentage(value, digits = 1) {
+  if (!Number.isFinite(value)) {
+    return 'N/A';
+  }
+  return `${value.toFixed(digits)}%`;
+}
+
+function formatDuration(totalSeconds) {
+  if (!Number.isFinite(totalSeconds)) {
+    return 'N/A';
+  }
+
+  const seconds = Math.floor(totalSeconds % 60);
+  const minutes = Math.floor((totalSeconds / 60) % 60);
+  const hours = Math.floor((totalSeconds / 3600) % 24);
+  const days = Math.floor(totalSeconds / 86400);
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0 || parts.length) parts.push(`${hours}h`);
+  if (minutes > 0 || parts.length) parts.push(`${minutes}m`);
+  parts.push(`${seconds}s`);
+
+  return parts.join(' ');
+}
+
+function formatFrequency(mhz) {
+  if (!Number.isFinite(mhz)) {
+    return 'N/A';
+  }
+
+  if (mhz >= 1000) {
+    return `${(mhz / 1000).toFixed(2)} GHz`;
+  }
+
+  return `${mhz.toFixed(0)} MHz`;
+}
+
 // Check authentication on load
 async function checkAuth() {
   try {
@@ -63,11 +119,13 @@ async function checkAuth() {
 function showLoginScreen() {
   document.getElementById('loginScreen').style.display = 'block';
   document.getElementById('adminPanel').style.display = 'none';
+  stopMetricsPolling();
 }
 
 function showAdminPanel() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminPanel').style.display = 'block';
+  startMetricsPolling();
 }
 
 // Login form handler
@@ -110,6 +168,7 @@ async function logout() {
     if (socket) {
       socket.disconnect();
     }
+    stopMetricsPolling();
     showLoginScreen();
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
@@ -128,6 +187,120 @@ function initializeSocket() {
   socket.on('disconnect', () => {
     console.log('Admin socket disconnected');
   });
+}
+
+function startMetricsPolling() {
+  stopMetricsPolling();
+  fetchServerMetrics();
+  metricsInterval = setInterval(fetchServerMetrics, 5000);
+}
+
+function stopMetricsPolling() {
+  if (metricsInterval) {
+    clearInterval(metricsInterval);
+    metricsInterval = null;
+  }
+}
+
+async function fetchServerMetrics() {
+  const container = document.getElementById('serverMetrics');
+  if (!container) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/admin/metrics');
+
+    if (response.status === 401) {
+      stopMetricsPolling();
+      showLoginScreen();
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    renderServerMetrics(data);
+  } catch (error) {
+    console.error('Error fetching server metrics:', error);
+    container.innerHTML = `
+      <div class="metric-card full-width">
+        <h3>Server Metrics</h3>
+        <div class="metric-subtext">Unable to load metrics. Check server logs for details.</div>
+      </div>
+    `;
+  }
+}
+
+function renderServerMetrics(metrics) {
+  const container = document.getElementById('serverMetrics');
+  if (!container) {
+    return;
+  }
+
+  const memory = metrics?.memory || {};
+  const cpu = metrics?.cpu || {};
+  const network = Array.isArray(metrics?.network) ? metrics.network : [];
+
+  const systemMemoryPercent = memory.total ? (memory.used / memory.total) * 100 : NaN;
+  const processHeapPercent = memory.heapTotal ? (memory.heapUsed / memory.heapTotal) * 100 : NaN;
+  const loadAverage = Array.isArray(cpu.loadAverage) ? cpu.loadAverage : [];
+  const cpuPercent = cpu?.usage?.percent;
+  const userCpuSeconds = (cpu?.usage?.user ?? 0) / 1_000_000;
+  const systemCpuSeconds = (cpu?.usage?.system ?? 0) / 1_000_000;
+  const lastUpdated = metrics?.timestamp ? new Date(metrics.timestamp).toLocaleTimeString() : 'N/A';
+
+  const loadAverageText = loadAverage
+    .slice(0, 3)
+    .map(value => (Number.isFinite(value) ? value.toFixed(2) : '0.00'))
+    .join(' / ');
+
+  const networkCards = network.length > 0
+    ? network.map(interfaceInfo => `
+        <div class="network-card">
+          <h3>${interfaceInfo.name}</h3>
+          ${Array.isArray(interfaceInfo.addresses) && interfaceInfo.addresses.length > 0
+            ? interfaceInfo.addresses.map(address => `
+              <div class="network-address">
+                ${address.family} • ${address.address}
+                <span class="metric-metadata">(mask ${address.netmask}${address.mac ? ` • MAC ${address.mac}` : ''})</span>
+              </div>
+            `).join('')
+            : '<div class="metric-subtext">No external addresses</div>'}
+        </div>
+      `).join('')
+    : '<div class="metric-subtext">No external network interfaces detected.</div>';
+
+  container.innerHTML = `
+    <div class="metric-card">
+      <h3>Memory Usage</h3>
+      <div class="metric-value">${formatBytes(memory.used || 0)} / ${formatBytes(memory.total || 0)}</div>
+      <div class="metric-subtext">System usage: ${formatPercentage(systemMemoryPercent)}</div>
+      <div class="metric-subtext">Process heap: ${formatBytes(memory.heapUsed || 0)} / ${formatBytes(memory.heapTotal || 0)} (${formatPercentage(processHeapPercent)})</div>
+      <div class="metric-metadata">RSS ${formatBytes(memory.rss || 0)} • External ${formatBytes(memory.external || 0)}</div>
+    </div>
+    <div class="metric-card">
+      <h3>CPU Load</h3>
+      <div class="metric-value">${formatPercentage(cpuPercent)}</div>
+      <div class="metric-subtext">Load avg (1m / 5m / 15m): ${loadAverageText}</div>
+      <div class="metric-subtext">${cpu.cores || '?'} cores • ${cpu.model || 'Unknown CPU'}</div>
+      <div class="metric-metadata">Clock ~ ${formatFrequency(cpu.speed)} • Process time ${userCpuSeconds.toFixed(1)}s user / ${systemCpuSeconds.toFixed(1)}s sys</div>
+    </div>
+    <div class="metric-card">
+      <h3>Uptime</h3>
+      <div class="metric-value">${formatDuration(metrics?.uptime)}</div>
+      <div class="metric-subtext">Node ${metrics?.nodeVersion || 'N/A'} • ${metrics?.platform || 'unknown'}</div>
+      <div class="metric-metadata">Last updated ${lastUpdated}</div>
+    </div>
+    <div class="metric-card full-width">
+      <h3>Network Interfaces</h3>
+      <div class="network-list">
+        ${networkCards}
+      </div>
+    </div>
+  `;
 }
 
 async function refreshGames() {

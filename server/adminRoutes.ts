@@ -4,6 +4,7 @@ import { validateAdminCredentials, requireAdmin } from './adminAuth';
 import { Game } from './game';
 import { gameCache } from './cache';
 import path from 'path';
+import os from 'os';
 
 export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupService?: any) {
   const router = Router();
@@ -149,6 +150,66 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
       console.error('Manual cleanup failed:', err);
       res.status(500).json({ error: 'Cleanup failed' });
     }
+  });
+
+  router.get('/metrics', requireAdmin, (req: Request, res: Response) => {
+    const memoryUsage = process.memoryUsage();
+    const cpuUsage = process.cpuUsage();
+    const uptime = process.uptime();
+    const totalMemory = os.totalmem();
+    const freeMemory = os.freemem();
+    const usedMemory = totalMemory - freeMemory;
+    const loadAverage = os.loadavg();
+    const cpus = os.cpus();
+    const cpuCount = cpus.length;
+    const primaryCpu = cpus[0];
+    const totalCpuTimeSeconds = (cpuUsage.user + cpuUsage.system) / 1_000_000;
+    const averageCpuPercent = uptime > 0 && cpuCount > 0
+      ? (totalCpuTimeSeconds / (uptime * cpuCount)) * 100
+      : 0;
+
+    const network = Object.entries(os.networkInterfaces())
+      .map(([name, details]) => ({
+        name,
+        addresses: (details || [])
+          .filter(address => !address.internal)
+          .map(address => ({
+            address: address.address,
+            family: address.family,
+            netmask: address.netmask,
+            mac: address.mac
+          }))
+      }))
+      .filter(interfaceInfo => interfaceInfo.addresses.length > 0);
+
+    res.json({
+      timestamp: Date.now(),
+      uptime,
+      platform: process.platform,
+      nodeVersion: process.version,
+      memory: {
+        total: totalMemory,
+        free: freeMemory,
+        used: usedMemory,
+        rss: memoryUsage.rss,
+        heapTotal: memoryUsage.heapTotal,
+        heapUsed: memoryUsage.heapUsed,
+        external: memoryUsage.external,
+        arrayBuffers: memoryUsage.arrayBuffers
+      },
+      cpu: {
+        cores: cpuCount,
+        model: primaryCpu?.model,
+        speed: primaryCpu?.speed,
+        loadAverage,
+        usage: {
+          user: cpuUsage.user,
+          system: cpuUsage.system,
+          percent: averageCpuPercent
+        }
+      },
+      network
+    });
   });
 
   return router;
