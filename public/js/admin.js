@@ -478,16 +478,67 @@ function drawRequestsChart(history) {
   });
 
   const latestSample = samples[samples.length - 1] || null;
-  const latestPerEvent = latestSample?.socketRequestRatesByEvent || {};
-  const sortedEvents = Object.entries(latestPerEvent)
-    .map(([name, value]) => {
-      const numeric = Number(value);
-      return [name, Number.isFinite(numeric) ? numeric : 0];
-    })
-    .sort((a, b) => b[1] - a[1]);
 
-  const positiveEvents = sortedEvents.filter(([, value]) => value > 0);
-  const topEventEntries = (positiveEvents.length ? positiveEvents : sortedEvents).slice(0, REQUEST_EVENT_COLORS.length);
+  const eventPeakRates = new Map();
+  const latestEventRates = new Map();
+
+  samples.forEach(sample => {
+    const perEvent = sample.socketRequestRatesByEvent;
+    if (!perEvent) {
+      return;
+    }
+
+    Object.entries(perEvent).forEach(([eventName, rawValue]) => {
+      const numeric = Number(rawValue);
+      if (!Number.isFinite(numeric)) {
+        return;
+      }
+
+      const currentPeak = eventPeakRates.get(eventName) ?? 0;
+      if (numeric > currentPeak) {
+        eventPeakRates.set(eventName, numeric);
+      } else if (!eventPeakRates.has(eventName)) {
+        eventPeakRates.set(eventName, currentPeak);
+      }
+
+      if (sample === latestSample) {
+        latestEventRates.set(eventName, numeric);
+      }
+    });
+  });
+
+  const activeEventNames = Array.from(latestEventRates.entries())
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name]) => name);
+
+  const peakEventNames = Array.from(eventPeakRates.entries())
+    .filter(([, peak]) => peak > 0)
+    .sort((a, b) => {
+      if (b[1] !== a[1]) {
+        return b[1] - a[1];
+      }
+      return a[0].localeCompare(b[0]);
+    })
+    .map(([name]) => name);
+
+  const selectedEventNames = [];
+  const seenEventNames = new Set();
+  const addEventName = (eventName) => {
+    if (!seenEventNames.has(eventName) && selectedEventNames.length < REQUEST_EVENT_COLORS.length) {
+      seenEventNames.add(eventName);
+      selectedEventNames.push(eventName);
+    }
+  };
+
+  activeEventNames.forEach(addEventName);
+  peakEventNames.forEach(addEventName);
+
+  if (selectedEventNames.length < REQUEST_EVENT_COLORS.length && latestSample?.socketRequestRatesByEvent) {
+    Object.keys(latestSample.socketRequestRatesByEvent)
+      .sort()
+      .forEach(addEventName);
+  }
 
   const seriesList = [
     { label: 'Total Requests', color: TOTAL_REQUEST_COLOR, values: totalValues }
@@ -502,7 +553,7 @@ function drawRequestsChart(history) {
     }
   ];
 
-  topEventEntries.forEach(([eventName], index) => {
+  selectedEventNames.forEach((eventName, index) => {
     const color = REQUEST_EVENT_COLORS[index % REQUEST_EVENT_COLORS.length];
     const values = samples.map(sample => {
       const perEvent = sample.socketRequestRatesByEvent;
