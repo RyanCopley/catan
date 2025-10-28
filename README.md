@@ -1,149 +1,182 @@
 # Catan Online
 
-A web-based multiplayer implementation of the popular board game Catan, built with Node.js and Socket.IO.
+A web-based multiplayer implementation of the classic board game Settlers of Catan, built with Node.js, Express, Socket.IO, and Redis for real-time gameplay.
 
 ## Features
 
-- Real-time multiplayer gameplay (2-4 players)
-- Hexagonal board generation with randomized tiles and numbers
-- Settlement, road, and city building mechanics
-- Dice rolling and resource distribution
-- Turn-based gameplay with setup phase
-- Victory point tracking (first to 10 wins)
-- Longest road calculation
-- Interactive canvas-based game board
-- Responsive UI with player status tracking
+- **Real-time Multiplayer**: Play with 2-4 players using WebSocket connections
+- **Complete Game Mechanics**:
+  - Initial settlement and road placement
+  - Resource production based on dice rolls
+  - Building settlements, cities, and roads
+  - Development cards (Knight, Year of Plenty, Monopoly, Road Building, Victory Points)
+  - Player trading and bank trading
+  - Robber mechanics with discarding and stealing
+  - Longest Road and Largest Army bonuses
+  - Port trading (3:1 and 2:1)
+- **Game State Persistence**: Redis caching for game state management
+- **Interactive UI**: Canvas-based board rendering with real-time updates
+
+## Tech Stack
+
+### Backend
+- **Node.js** with **TypeScript**
+- **Express.js** for HTTP server
+- **Socket.IO** for real-time bidirectional communication
+- **Redis** for game state caching and persistence
+
+### Frontend
+- Vanilla JavaScript
+- HTML5 Canvas for game board rendering
+- CSS3 for styling
+
+### Infrastructure
+- **Podman/Docker Compose** for containerized Redis deployment
+
+## Project Structure
+
+```
+catan/
+├── server/               # Backend TypeScript source files
+│   ├── index.ts         # Server entry point with Express and Socket.IO setup
+│   ├── game.ts          # Core game logic and state management
+│   ├── types.ts         # TypeScript type definitions
+│   ├── socketHandlers.ts # Socket.IO event handlers
+│   ├── boardGenerator.ts # Procedural board generation
+│   ├── buildingManager.ts # Settlement, city, and road placement logic
+│   ├── playerManager.ts  # Player state and victory point calculations
+│   ├── tradeManager.ts   # Player and bank trading logic
+│   ├── developmentCardManager.ts # Development card mechanics
+│   ├── robberManager.ts  # Robber, discarding, and stealing mechanics
+│   ├── cache.ts          # Redis cache wrapper
+│   └── utils.ts          # Utility functions
+├── public/              # Frontend static files
+│   ├── index.html       # Main HTML file
+│   ├── css/             # Stylesheets
+│   └── js/              # Client-side JavaScript
+│       ├── client.js    # Socket.IO client and game state management
+│       └── renderer.js  # Canvas rendering logic
+├── dist/                # Compiled JavaScript output
+├── package.json         # Project dependencies and scripts
+├── tsconfig.json        # TypeScript configuration
+└── podman-compose.yml   # Redis container configuration
+
+```
 
 ## Installation
 
-1. Make sure you have Node.js installed (v14 or higher recommended)
+### Prerequisites
 
-2. Install dependencies:
-```bash
-npm install
-```
+- Node.js (v20 or higher)
+- npm or yarn
+- Podman or Docker (for Redis)
 
-## Running the Game
+### Setup
 
-Start the server:
-```bash
-npm start
-```
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd catan
+   ```
 
-The server will run on `http://localhost:3000`
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-Open your web browser and navigate to `http://localhost:3000`
+3. **Start Redis** (using Podman Compose):
+   ```bash
+   podman-compose up -d
+   ```
 
-## How to Play
+   Or using Docker Compose:
+   ```bash
+   docker-compose up -d
+   ```
 
-### Creating/Joining a Game
+4. **Build the TypeScript code**:
+   ```bash
+   npm run build
+   ```
 
-1. Enter your name on the main menu
-2. Click "Create New Game" to start a new game, or enter a Game ID to join an existing game
-3. Share the Game ID with other players (displayed in the lobby)
-4. Once 2-4 players have joined, the first player can click "Start Game"
+5. **Start the server**:
+   ```bash
+   npm start
+   ```
 
-### Setup Phase
+   For development with auto-reload:
+   ```bash
+   npm run dev
+   ```
 
-1. Players take turns placing their first settlement and road
-2. After all players have placed, the order reverses for the second settlement and road
-3. The second settlement gives you starting resources from adjacent tiles
+6. **Access the game**:
+   Open your browser and navigate to `http://localhost:3000`
 
-### Playing the Game
+## Usage
 
-**On Your Turn:**
+### Creating a Game
 
-1. **Roll Dice**: Click "Roll Dice" to roll two dice
-   - If the total matches a number token, all settlements/cities adjacent to that hex receive resources
-   - If you roll a 7, the robber activates (players with >7 cards must discard half)
+1. Enter your name in the main menu
+2. Click "Create New Game"
+3. Share the generated Game ID with other players
+4. Wait for players to join (2-4 players)
+5. Click "Start Game" when ready
 
-2. **Build Phase**: After rolling, you can:
-   - **Build Settlement** (costs: 1 Wood, 1 Brick, 1 Sheep, 1 Wheat)
-     - Must be at least 2 edges away from any other settlement
-     - Must be connected to your road network
-     - Worth 1 victory point
+### Joining a Game
 
-   - **Build Road** (costs: 1 Wood, 1 Brick)
-     - Must connect to your existing roads or settlements
-     - Build 5+ roads for longest road bonus (2 victory points)
+1. Enter your name in the main menu
+2. Enter the Game ID provided by the host
+3. Click "Join Game"
+4. Wait for the host to start the game
 
-   - **Build City** (costs: 2 Wheat, 3 Ore)
-     - Upgrade an existing settlement to a city
-     - Cities produce 2 resources instead of 1
-     - Worth 1 additional victory point (2 total)
+### Gameplay
 
-3. **End Turn**: Click "End Turn" to pass to the next player
+The game follows standard Catan rules:
 
-### Winning the Game
+1. **Setup Phase**: Players take turns placing two settlements and two roads
+2. **Playing Phase**:
+   - Roll dice to collect resources
+   - Build settlements, cities, and roads
+   - Trade with other players or the bank
+   - Buy and play development cards
+   - First player to reach 10 victory points wins
 
-First player to reach 10 victory points wins!
+## NPM Scripts
 
-**Victory Points:**
-- Each settlement: 1 point
-- Each city: 2 points
-- Longest road (5+ roads): 2 points
+- `npm start` - Run the compiled production server
+- `npm run dev` - Run the development server with ts-node
+- `npm run build` - Compile TypeScript to JavaScript
+- `npm run watch` - Watch mode for TypeScript compilation
 
-## Game Controls
+## Configuration
 
-- **Building**: Click the build button, then click on the board where you want to place
-  - Settlements/Cities: Click on vertex points (corners where hexes meet)
-  - Roads: Click on edges (between two vertices)
-- **Hover**: Hover over valid locations to see highlighted placement options
-- **Cancel**: Click "End Turn" or another build button to cancel current selection
+### Environment Variables
 
-## Technical Details
+- `PORT` - Server port (default: 3000)
 
-### Backend (Node.js)
-- Express server for serving static files
-- Socket.IO for real-time multiplayer communication
-- Game state management with hexagonal coordinate system
-- Resource distribution and building validation logic
+### Redis Configuration
 
-### Frontend
-- Vanilla JavaScript (no frameworks)
-- HTML5 Canvas for board rendering
-- Real-time UI updates via WebSocket
-- Responsive design with CSS Grid/Flexbox
+The Redis connection is configured in `server/cache.ts`. By default, it connects to `localhost:6379`.
 
-### Project Structure
-```
-catan/
-├── server/
-│   ├── index.js      # Express + Socket.IO server
-│   └── game.js       # Game logic and state management
-├── public/
-│   ├── index.html    # Main HTML file
-│   ├── css/
-│   │   └── style.css # Styles
-│   └── js/
-│       ├── client.js    # Client-side game logic
-│       └── renderer.js  # Canvas rendering
-├── package.json
-└── README.md
-```
+## Game Rules Implementation
 
-## Future Enhancements
+This implementation includes:
 
-- Development cards (Knight, Victory Point, Road Building, etc.)
-- Player-to-player trading
-- Maritime trade (ports with 3:1 or 2:1 ratios)
-- Robber movement and stealing
-- Improved longest road calculation (actual path finding)
-- Game persistence (save/load games)
-- Player avatars and chat
-- Sound effects and animations
-- Mobile-responsive touch controls
+- Standard Catan board with 19 hexes
+- Resource generation (wood, brick, sheep, wheat, ore)
+- Building costs and placement rules
+- Development card deck with proper distribution
+- Robber mechanics (7 rolled, discard half if >7 cards)
+- Trading system (player-to-player and bank)
+- Port trading with 3:1 and 2:1 rates
+- Longest Road (5+ roads)
+- Largest Army (3+ knights)
+- Victory point calculation
 
-## Notes
+## Contributing
 
-- This is a simplified implementation focusing on core mechanics
-- Some advanced rules may differ from the official board game
-- Trading and development cards are planned for future updates
+Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## License
 
 ISC
-
-## Credits
-
-Inspired by the board game Catan by Klaus Teuber
