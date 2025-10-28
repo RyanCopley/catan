@@ -102,6 +102,7 @@ export interface GameState {
   setupSettlementPlaced: boolean;
   setupRoadPlaced: boolean;
   tradeOffers: TradeOffer[];
+  developmentCardDeck: DevelopmentCardType[];
 }
 
 export interface DiceResult {

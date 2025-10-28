@@ -31,15 +31,7 @@ gameCache.connect().then(async () => {
       const cachedState = await gameCache.getGame(gameId);
       if (cachedState) {
         const game = new Game(gameId);
-        game.players = cachedState.players;
-        game.board = cachedState.board;
-        game.currentPlayerIndex = cachedState.currentPlayerIndex;
-        game.phase = cachedState.phase;
-        game.turnPhase = cachedState.turnPhase;
-        game.diceRoll = cachedState.diceRoll;
-        game.setupRound = cachedState.setupRound;
-        game.setupSettlementPlaced = cachedState.setupSettlementPlaced;
-        game.setupRoadPlaced = cachedState.setupRoadPlaced;
+        game.restoreState(cachedState);
 
         games.set(gameId, game);
         console.log(`Loaded game ${gameId} (phase: ${game.phase}, players: ${game.players.length})`);

@@ -157,6 +157,15 @@ export class TradeManager {
   getTradeOffers(): TradeOffer[] {
     return this.tradeOffers;
   }
+
+  restoreTradeOffers(offers: TradeOffer[]): void {
+    this.tradeOffers = offers;
+    // Update nextTradeId to be higher than any existing trade ID
+    if (offers.length > 0) {
+      const maxId = Math.max(...offers.map(o => o.id));
+      this.nextTradeId = maxId + 1;
+    }
+  }
 }
 
 export function tradeWithBank(

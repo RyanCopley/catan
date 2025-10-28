@@ -51,6 +51,14 @@ export class DevelopmentCardManager {
   getDeckSize(): number {
     return this.deck.length;
   }
+
+  getDeck(): DevelopmentCardType[] {
+    return [...this.deck];
+  }
+
+  setDeck(deck: DevelopmentCardType[]): void {
+    this.deck = [...deck];
+  }
 }
 
 export function playYearOfPlenty(

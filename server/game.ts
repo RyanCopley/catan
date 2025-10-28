@@ -466,7 +466,30 @@ export class Game {
       setupRound: this.setupRound,
       setupSettlementPlaced: this.setupSettlementPlaced,
       setupRoadPlaced: this.setupRoadPlaced,
-      tradeOffers: this.tradeManager.getTradeOffers()
+      tradeOffers: this.tradeManager.getTradeOffers(),
+      developmentCardDeck: this.devCardManager.getDeck()
     };
+  }
+
+  restoreState(state: GameState): void {
+    this.players = state.players;
+    this.board = state.board;
+    this.currentPlayerIndex = state.currentPlayerIndex;
+    this.phase = state.phase;
+    this.turnPhase = state.turnPhase;
+    this.diceRoll = state.diceRoll;
+    this.setupRound = state.setupRound;
+    this.setupSettlementPlaced = state.setupSettlementPlaced;
+    this.setupRoadPlaced = state.setupRoadPlaced;
+
+    // Restore trade offers
+    if (state.tradeOffers) {
+      this.tradeManager.restoreTradeOffers(state.tradeOffers);
+    }
+
+    // Restore development card deck (backward compatibility: if missing, deck will be empty)
+    if (state.developmentCardDeck) {
+      this.devCardManager.setDeck(state.developmentCardDeck);
+    }
   }
 }
