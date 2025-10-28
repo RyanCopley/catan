@@ -204,6 +204,7 @@ class GameClient {
       }
 
       this.closeStealModal();
+      this.endKnightMode(); // Clear knight banner if it was from playing a knight card
       this.updateGameUI();
     });
 
@@ -323,18 +324,19 @@ class GameClient {
 
     this.socket.on('turnEnded', (data) => {
       this.gameState = data.game;
+      this.endKnightMode(); // Clear knight banner when turn ends
       this.updateGameUI();
       const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
 
       if (currentPlayer.id === this.playerId) {
-      
+
         var audio = new Audio('sounds/your-turn.mp3');
         audio.volume = 0.05;
         audio.play();
 
       }
 
-      
+
       this.renderer.addLogMessage(`${currentPlayer.name}'s turn`);
       document.getElementById('diceResult').textContent = '';
     });
@@ -1655,8 +1657,13 @@ class GameClient {
   }
 
   endKnightMode() {
-    document.getElementById('knightNotice').style.display = 'none';
-    this.renderer.clearBuildMode();
+    const knightNotice = document.getElementById('knightNotice');
+    if (knightNotice) {
+      knightNotice.style.display = 'none';
+    }
+    if (this.renderer && this.renderer.buildMode === 'robber') {
+      this.renderer.clearBuildMode();
+    }
   }
 
   showYearOfPlentyModal() {
