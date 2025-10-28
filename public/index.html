@@ -16,6 +16,19 @@
           <h2>Play!</h2>
           <div class="menu-content">
             <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+            <div class="password-section">
+              <button id="togglePasswordSection" class="btn btn-small btn-secondary">
+                <span id="passwordToggleIcon">▶</span> Session Password
+              </button>
+              <div id="passwordDetails" class="password-details" style="display: none;">
+                <p class="password-info">This password protects your username in games. It's stored locally on your device.</p>
+                <div class="password-input-group">
+                  <label for="sessionPassword">Password:</label>
+                  <input type="text" id="sessionPassword" readonly>
+                  <button id="regeneratePassword" class="btn btn-small">Regenerate</button>
+                </div>
+              </div>
+            </div>
             <div class="open-games-section">
               <h3>Open Games</h3>
               <div id="openGamesList" class="open-games-list">

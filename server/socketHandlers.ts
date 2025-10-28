@@ -5,6 +5,15 @@ import { gameCache } from './cache';
 const LOBBY_HEALTHCHECK_INTERVAL_MS = 30000;
 let lobbyHealthCheckInterval: NodeJS.Timeout | null = null;
 
+function generatePassword(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let password = '';
+  for (let i = 0; i < 8; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
 function getOpenGamesSnapshot(games: Map<string, Game>) {
   return Array.from(games.entries())
     .filter(([_, game]) => game.phase === 'waiting')
@@ -101,10 +110,10 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     socket.emit('openGamesList', { games: getOpenGamesSnapshot(games) });
   });
 
-  socket.on('createGame', async ({ playerName }: { playerName: string }) => {
+  socket.on('createGame', async ({ playerName, password }: { playerName: string; password: string }) => {
     const gameId = generateGameId();
     const game = new Game(gameId);
-    game.addPlayer(socket.id, playerName);
+    game.addPlayer(socket.id, playerName, password);
     games.set(gameId, game);
 
     await saveGameToCache(gameId, game);
@@ -117,7 +126,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     broadcastOpenGames();
   });
 
-  socket.on('joinGame', async ({ gameId, playerName }: { gameId: string; playerName: string }) => {
+  socket.on('joinGame', async ({ gameId, playerName, password }: { gameId: string; playerName: string; password: string }) => {
     let game = games.get(gameId);
 
     // If not in memory, try to load from cache
@@ -138,6 +147,12 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     const existingPlayer = game.players.find(p => p.name === playerName);
 
     if (existingPlayer) {
+      // Validate password for reconnection
+      if (existingPlayer.password !== password) {
+        socket.emit('error', { message: 'Invalid password for this username. Someone else is using this name, or your password has changed.' });
+        return;
+      }
+
       console.log(`${playerName} reconnecting to game ${gameId}`);
       const oldSocketId = existingPlayer.id;
       game.reconnectPlayer(oldSocketId, socket.id);
@@ -158,7 +173,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
       return;
     }
 
-    game.addPlayer(socket.id, playerName);
+    game.addPlayer(socket.id, playerName, password);
     socket.join(gameId);
     socket.emit('gameJoined', { gameId, playerId: socket.id, game: game.getState() });
     io.to(gameId).emit('playerJoined', { game: game.getState() });

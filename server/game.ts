@@ -47,8 +47,8 @@ export class Game {
     this.devCardManager = new DevelopmentCardManager();
   }
 
-  addPlayer(socketId: string, name: string): void {
-    const player = createPlayer(socketId, name, this.players.length);
+  addPlayer(socketId: string, name: string, password: string): void {
+    const player = createPlayer(socketId, name, this.players.length, password);
     this.players.push(player);
   }
 

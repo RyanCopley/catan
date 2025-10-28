@@ -313,6 +313,66 @@ input[type="text"]:focus {
   font-size: 28px;
 }
 
+.password-section {
+  margin: 20px 0;
+}
+
+.password-section .btn-small {
+  padding: 8px 16px;
+  font-size: 14px;
+  width: 100%;
+  text-align: left;
+}
+
+#passwordToggleIcon {
+  display: inline-block;
+  width: 12px;
+  transition: transform 0.2s;
+}
+
+.password-details {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8f8f8;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.password-info {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.password-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.password-input-group label {
+  font-weight: bold;
+  min-width: 80px;
+}
+
+.password-input-group input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.password-input-group .btn-small {
+  padding: 8px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  width: auto;
+}
+
 .players-list {
   margin: 20px 0;
 }

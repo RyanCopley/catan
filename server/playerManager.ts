@@ -1,11 +1,12 @@
 import { Player, PlayerColor, Resources, Coordinate, Edge } from './types';
 
-export function createPlayer(socketId: string, name: string, playerIndex: number): Player {
+export function createPlayer(socketId: string, name: string, playerIndex: number, password: string): Player {
   const colors: PlayerColor[] = ['red', 'blue', 'white', 'orange'];
 
   return {
     id: socketId,
     name: name,
+    password: password,
     color: colors[playerIndex],
     resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 },
     developmentCards: [],

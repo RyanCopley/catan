@@ -13,32 +13,68 @@ class GameClient {
     this.gameState = null;
     this.renderer = null;
     this.playerName = '';
+    this.playerPassword = '';
     this.hiddenOffers = new Set();
     this.hasRolledDice = false;
 
+    this.loadPlayerDataFromStorage();
     this.setupSocketListeners();
     this.setupUIListeners();
     this.checkUrlParams();
   }
 
+  generatePassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  }
+
+  loadPlayerDataFromStorage() {
+    // Load saved name
+    const savedName = localStorage.getItem('catanPlayerName');
+    if (savedName) {
+      this.playerName = savedName;
+      document.getElementById('playerName').value = savedName;
+    }
+
+    // Load or generate password
+    let savedPassword = localStorage.getItem('catanPlayerPassword');
+    if (!savedPassword) {
+      savedPassword = this.generatePassword();
+      localStorage.setItem('catanPlayerPassword', savedPassword);
+    }
+    this.playerPassword = savedPassword;
+  }
+
+  savePlayerDataToStorage() {
+    if (this.playerName) {
+      localStorage.setItem('catanPlayerName', this.playerName);
+    }
+    if (this.playerPassword) {
+      localStorage.setItem('catanPlayerPassword', this.playerPassword);
+    }
+  }
+
   checkUrlParams() {
     const urlParams = new URLSearchParams(window.location.search);
     const gameId = urlParams.get('gameId');
-    const playerName = urlParams.get('name');
 
-    if (gameId && playerName) {
-      // Auto-rejoin game from URL params
-      this.playerName = playerName;
-      document.getElementById('playerName').value = playerName;
-      this.socket.emit('joinGame', { gameId, playerName });
+    if (gameId && this.playerName && this.playerPassword) {
+      // Auto-rejoin game from URL params (gameId) and localStorage (name/password)
+      this.socket.emit('joinGame', { gameId, playerName: this.playerName, password: this.playerPassword });
     }
   }
 
   updateUrl() {
-    if (this.gameId && this.playerName) {
+    if (this.gameId) {
       const url = new URL(window.location);
       url.searchParams.set('gameId', this.gameId);
-      url.searchParams.set('name', this.playerName);
+      // Remove any old name/password params if they exist
+      url.searchParams.delete('name');
+      url.searchParams.delete('password');
       window.history.pushState({}, '', url);
     }
   }
@@ -49,9 +85,9 @@ class GameClient {
       this.showConnectionStatus('connected');
 
       // Auto-rejoin game if we were in one
-      if (this.gameId && this.playerName) {
+      if (this.gameId && this.playerName && this.playerPassword) {
         console.log('Reconnecting to game:', this.gameId);
-        this.socket.emit('joinGame', { gameId: this.gameId, playerName: this.playerName });
+        this.socket.emit('joinGame', { gameId: this.gameId, playerName: this.playerName, password: this.playerPassword });
       } else {
         // Request open games list and history if on main menu
         this.socket.emit('getOpenGames');
@@ -443,7 +479,31 @@ class GameClient {
         return;
       }
       this.playerName = playerName;
-      this.socket.emit('createGame', { playerName });
+      this.savePlayerDataToStorage();
+      this.socket.emit('createGame', { playerName, password: this.playerPassword });
+    });
+
+    // Password section toggle
+    document.getElementById('togglePasswordSection').addEventListener('click', () => {
+      const details = document.getElementById('passwordDetails');
+      const icon = document.getElementById('passwordToggleIcon');
+      if (details.style.display === 'none') {
+        details.style.display = 'block';
+        icon.textContent = '▼';
+        document.getElementById('sessionPassword').value = this.playerPassword;
+      } else {
+        details.style.display = 'none';
+        icon.textContent = '▶';
+      }
+    });
+
+    // Regenerate password button
+    document.getElementById('regeneratePassword').addEventListener('click', () => {
+      if (confirm('Are you sure you want to regenerate your password? This will prevent reconnection to existing games with your current username.')) {
+        this.playerPassword = this.generatePassword();
+        this.savePlayerDataToStorage();
+        document.getElementById('sessionPassword').value = this.playerPassword;
+      }
     });
 
     // Lobby screen
@@ -1219,7 +1279,8 @@ class GameClient {
       return;
     }
     this.playerName = playerName;
-    this.socket.emit('joinGame', { gameId, playerName });
+    this.savePlayerDataToStorage();
+    this.socket.emit('joinGame', { gameId, playerName, password: this.playerPassword });
   }
 
   updateGameHistory(history) {

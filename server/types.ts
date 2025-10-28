@@ -63,6 +63,7 @@ export interface Board {
 export interface Player {
   id: string;
   name: string;
+  password: string;
   color: PlayerColor;
   resources: Resources;
   developmentCards: DevelopmentCardType[];
