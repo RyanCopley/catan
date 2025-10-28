@@ -10,6 +10,9 @@ class BoardRenderer {
     this.maxZoom = 3.0;
     this.offsetX = 0;
     this.offsetY = 0;
+    this.pixelRatio = window.devicePixelRatio || 1;
+    this.displayWidth = 0;
+    this.displayHeight = 0;
     this.isPanning = false;
     this.panStart = { x: 0, y: 0 };
     this.selectedVertex = null;
@@ -43,8 +46,21 @@ class BoardRenderer {
 
   resizeCanvas() {
     const container = this.canvas.parentElement;
-    this.canvas.width = container.clientWidth;
-    this.canvas.height = container.clientHeight;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    this.pixelRatio = window.devicePixelRatio || 1;
+    this.displayWidth = width;
+    this.displayHeight = height;
+
+    this.canvas.style.width = `${width}px`;
+    this.canvas.style.height = `${height}px`;
+    this.canvas.width = Math.round(width * this.pixelRatio);
+    this.canvas.height = Math.round(height * this.pixelRatio);
+
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.scale(this.pixelRatio, this.pixelRatio);
+
     this.centerBoard();
     if (this.board) {
       this.render();
@@ -52,8 +68,8 @@ class BoardRenderer {
   }
 
   centerBoard() {
-    this.offsetX = this.canvas.width / 2;
-    this.offsetY = this.canvas.height / 2;
+    this.offsetX = this.displayWidth / 2;
+    this.offsetY = this.displayHeight / 2;
   }
 
   setupEventListeners() {
@@ -301,7 +317,7 @@ class BoardRenderer {
 
     // Clear canvas
     this.ctx.fillStyle = this.colors.water;
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     // Draw hexes
     this.board.hexes.forEach(hex => {
