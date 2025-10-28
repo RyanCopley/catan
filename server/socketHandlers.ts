@@ -2,6 +2,20 @@ import { Server, Socket } from 'socket.io';
 import { Game } from './game';
 import { gameCache } from './cache';
 
+const LOBBY_HEALTHCHECK_INTERVAL_MS = 30000;
+let lobbyHealthCheckInterval: NodeJS.Timeout | null = null;
+
+function getOpenGamesSnapshot(games: Map<string, Game>) {
+  return Array.from(games.entries())
+    .filter(([_, game]) => game.phase === 'waiting')
+    .map(([gameId, game]) => ({
+      gameId,
+      hostName: game.players[0]?.name || 'Unknown',
+      playerCount: game.players.length,
+      maxPlayers: 4
+    }));
+}
+
 async function saveGameToCache(gameId: string, game: Game): Promise<void> {
   await gameCache.saveGame(gameId, game);
 }
@@ -30,16 +44,53 @@ async function loadGameFromCache(gameId: string, games: Map<string, Game>): Prom
 export function setupSocketHandlers(io: Server, socket: Socket, games: Map<string, Game>): void {
   // Helper to broadcast open games list
   const broadcastOpenGames = () => {
-    const openGames = Array.from(games.entries())
-      .filter(([_, game]) => game.phase === 'waiting')
-      .map(([gameId, game]) => ({
-        gameId,
-        hostName: game.players[0]?.name || 'Unknown',
-        playerCount: game.players.length,
-        maxPlayers: 4
-      }));
-    io.emit('openGamesList', { games: openGames });
+    io.emit('openGamesList', { games: getOpenGamesSnapshot(games) });
   };
+
+  const ensureLobbyHealthCheck = () => {
+    if (lobbyHealthCheckInterval) return;
+
+    const runHealthCheck = async () => {
+      let openGamesChanged = false;
+
+      for (const [gameId, game] of games.entries()) {
+        if (game.phase !== 'waiting') continue;
+
+        const disconnectedPlayers = game.players.filter(player => !io.sockets.sockets.has(player.id));
+        if (disconnectedPlayers.length === 0) continue;
+
+        disconnectedPlayers.forEach(player => {
+          const removed = game.removePlayer(player.id);
+          if (removed) {
+            console.log(`Removed disconnected player ${player.name} from lobby ${gameId}`);
+          }
+        });
+
+        if (game.players.length === 0) {
+          games.delete(gameId);
+          await gameCache.deleteGame(gameId);
+          console.log(`Removed empty lobby ${gameId}`);
+        } else {
+          await saveGameToCache(gameId, game);
+          io.to(gameId).emit('playerLeft', { game: game.getState() });
+        }
+
+        openGamesChanged = true;
+      }
+
+      if (openGamesChanged) {
+        broadcastOpenGames();
+      }
+    };
+
+    lobbyHealthCheckInterval = setInterval(() => {
+      runHealthCheck().catch(err => {
+        console.error('Lobby health check failed:', err);
+      });
+    }, LOBBY_HEALTHCHECK_INTERVAL_MS);
+  };
+
+  ensureLobbyHealthCheck();
 
   socket.on('getGameHistory', async () => {
     const history = await gameCache.getGameHistory(10);
@@ -47,15 +98,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
   });
 
   socket.on('getOpenGames', () => {
-    const openGames = Array.from(games.entries())
-      .filter(([_, game]) => game.phase === 'waiting')
-      .map(([gameId, game]) => ({
-        gameId,
-        hostName: game.players[0]?.name || 'Unknown',
-        playerCount: game.players.length,
-        maxPlayers: 4
-      }));
-    socket.emit('openGamesList', { games: openGames });
+    socket.emit('openGamesList', { games: getOpenGamesSnapshot(games) });
   });
 
   socket.on('createGame', async ({ playerName }: { playerName: string }) => {
