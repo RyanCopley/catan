@@ -452,6 +452,12 @@ class GameClient {
     document.getElementById('submitDiscardBtn').addEventListener('click', () => {
       this.submitDiscard();
     });
+
+    // Message log toggle
+    document.getElementById('messageLogToggle').addEventListener('click', () => {
+      const messageLog = document.querySelector('.message-log');
+      messageLog.classList.toggle('collapsed');
+    });
   }
 
   handleVertexClick(vertex) {
@@ -1099,6 +1105,43 @@ class GameClient {
     }
   }
 
+  updatePhaseTimeline() {
+    if (!this.gameState) return;
+
+    // Clear all active/completed states
+    document.querySelectorAll('.phase-step').forEach(step => {
+      step.classList.remove('active', 'completed');
+    });
+    document.querySelectorAll('.phase-line').forEach(line => {
+      line.classList.remove('completed');
+    });
+
+    // Determine current phase
+    let currentPhase = this.gameState.phase; // 'setup', 'playing', 'finished'
+
+    // Mark phases as active or completed
+    const phases = ['setup', 'playing', 'finished'];
+    const currentIndex = phases.indexOf(currentPhase);
+
+    phases.forEach((phase, index) => {
+      const phaseStep = document.querySelector(`.phase-step[data-phase="${phase}"]`);
+      if (phaseStep) {
+        if (index < currentIndex) {
+          phaseStep.classList.add('completed');
+        } else if (index === currentIndex) {
+          phaseStep.classList.add('active');
+        }
+      }
+    });
+
+    // Mark lines as completed
+    document.querySelectorAll('.phase-line').forEach((line, index) => {
+      if (index < currentIndex) {
+        line.classList.add('completed');
+      }
+    });
+  }
+
   updateScoreboard() {
     if (!this.gameState || !this.renderer) return;
 
@@ -1131,8 +1174,30 @@ class GameClient {
       nameDiv.className = 'scoreboard-player-name';
       nameDiv.textContent = player.name;
 
+      const badgesDiv = document.createElement('div');
+      badgesDiv.className = 'scoreboard-badges-inline';
+
+      if (player.longestRoad) {
+        const badge = document.createElement('span');
+        badge.className = 'scoreboard-badge longest-road';
+        badge.textContent = '🛣️';
+        badge.title = 'Longest Road';
+        badgesDiv.appendChild(badge);
+      }
+
+      if (player.largestArmy) {
+        const badge = document.createElement('span');
+        badge.className = 'scoreboard-badge largest-army';
+        badge.textContent = '⚔️';
+        badge.title = 'Largest Army';
+        badgesDiv.appendChild(badge);
+      }
+
       header.appendChild(colorDiv);
       header.appendChild(nameDiv);
+      if (badgesDiv.children.length > 0) {
+        header.appendChild(badgesDiv);
+      }
 
       // Stats
       const statsDiv = document.createElement('div');
@@ -1189,30 +1254,9 @@ class GameClient {
       `;
       statsDiv.appendChild(cardsStat);
 
-      // Badges for special achievements
-      const badgesDiv = document.createElement('div');
-      badgesDiv.className = 'scoreboard-badges';
-
-      if (player.longestRoad) {
-        const badge = document.createElement('span');
-        badge.className = 'scoreboard-badge longest-road';
-        badge.textContent = '🛣️ Longest Road';
-        badgesDiv.appendChild(badge);
-      }
-
-      if (player.largestArmy) {
-        const badge = document.createElement('span');
-        badge.className = 'scoreboard-badge largest-army';
-        badge.textContent = '⚔️ Largest Army';
-        badgesDiv.appendChild(badge);
-      }
-
       // Assemble the player card
       playerDiv.appendChild(header);
       playerDiv.appendChild(statsDiv);
-      if (badgesDiv.children.length > 0) {
-        playerDiv.appendChild(badgesDiv);
-      }
 
       scoreboardContent.appendChild(playerDiv);
     });
@@ -1230,40 +1274,23 @@ class GameClient {
     // Update trade offers
     this.updateTradeOffers();
 
-    // Update header
-    document.getElementById('currentPlayerName').textContent = currentPlayer.name;
-    document.getElementById('currentPlayerName').style.color =
-      this.renderer.playerColors[currentPlayer.color];
-
-    let phaseText = '';
+    // Check if we should show robber notice
     let showRobberNotice = false;
-    if (this.gameState.phase === 'setup') {
-      phaseText = `Setup Round ${this.gameState.setupRound} - Place Settlement & Road`;
-    } else if (this.gameState.phase === 'playing') {
-      if (this.gameState.turnPhase === 'roll') {
-        phaseText = 'Roll Dice';
-      } else if (this.gameState.turnPhase === 'robber') {
-        const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
-        if (myPlayer && myPlayer.mustDiscard > 0) {
-          phaseText = `Discard ${myPlayer.mustDiscard} Cards`;
-        } else {
-          const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
-          if (currentPlayer.id === this.playerId) {
-            phaseText = 'Move Robber & Steal Card';
-            // Check if all players have discarded before showing notice
-            const allDiscarded = this.gameState.players.every(p => !p.mustDiscard || p.mustDiscard === 0);
-            if (allDiscarded) {
-              showRobberNotice = true;
-            }
-          } else {
-            phaseText = 'Waiting for Robber';
-          }
+    if (this.gameState.phase === 'playing' && this.gameState.turnPhase === 'robber') {
+      const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+      const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
+
+      if (currentPlayer.id === this.playerId && (!myPlayer.mustDiscard || myPlayer.mustDiscard === 0)) {
+        // Check if all players have discarded before showing notice
+        const allDiscarded = this.gameState.players.every(p => !p.mustDiscard || p.mustDiscard === 0);
+        if (allDiscarded) {
+          showRobberNotice = true;
         }
-      } else {
-        phaseText = 'Build & Trade';
       }
     }
-    document.getElementById('phaseText').textContent = phaseText;
+
+    // Update phase timeline
+    this.updatePhaseTimeline();
 
     // Show/hide robber notice
     const robberNotice = document.getElementById('robberNotice');
@@ -1284,41 +1311,6 @@ class GameClient {
 
     // Update player info
     if (myPlayer) {
-      document.getElementById('playerColor').style.backgroundColor =
-        this.renderer.playerColors[myPlayer.color];
-
-      // Update total victory points
-      document.getElementById('totalVP').textContent = myPlayer.victoryPoints;
-
-      // Update VP breakdown
-      document.getElementById('vpSettlements').textContent = myPlayer.settlements.length;
-      document.getElementById('vpCities').textContent = myPlayer.cities.length * 2;
-
-      // Show/hide Longest Road
-      const longestRoadItem = document.getElementById('vpLongestRoadItem');
-      if (myPlayer.longestRoad) {
-        longestRoadItem.style.display = 'block';
-      } else {
-        longestRoadItem.style.display = 'none';
-      }
-
-      // Show/hide Largest Army
-      const largestArmyItem = document.getElementById('vpLargestArmyItem');
-      if (myPlayer.largestArmy) {
-        largestArmyItem.style.display = 'block';
-      } else {
-        largestArmyItem.style.display = 'none';
-      }
-
-      // Show VP development cards count (hidden cards)
-      const vpDevCardsItem = document.getElementById('vpDevCardsItem');
-      if (myPlayer.victoryPointCards > 0) {
-        document.getElementById('vpDevCards').textContent = myPlayer.victoryPointCards;
-        vpDevCardsItem.style.display = 'block';
-      } else {
-        vpDevCardsItem.style.display = 'none';
-      }
-
       // Update resources
       document.getElementById('wood').textContent = myPlayer.resources.wood;
       document.getElementById('brick').textContent = myPlayer.resources.brick;
@@ -1630,3 +1622,16 @@ document.addEventListener('DOMContentLoaded', () => {
   gameClient = new GameClient();
   window.gameClient = gameClient;
 });
+
+// Debug function to toggle game log visibility
+window.toggleDebugLog = function() {
+  const messageLog = document.querySelector('.message-log');
+  if (messageLog) {
+    messageLog.classList.toggle('debug-visible');
+    const isVisible = messageLog.classList.contains('debug-visible');
+    console.log(`Game log ${isVisible ? 'enabled' : 'disabled'}`);
+    return isVisible;
+  }
+  console.log('Message log element not found');
+  return false;
+};

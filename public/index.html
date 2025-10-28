@@ -40,23 +40,14 @@
 
     <!-- Game Screen -->
     <div id="game" class="screen">
-      <div class="game-header">
-        <div class="game-info">
-          <div id="currentTurn">Current Turn: <span id="currentPlayerName"></span></div>
-          <div id="gamePhase">Phase: <span id="phaseText"></span></div>
-        </div>
-        <div id="robberNotice" class="robber-notice" style="display: none;">
-          Click on a hex to move the robber!
-        </div>
-        <div id="knightNotice" class="robber-notice" style="display: none;">
-          Playing Knight Card - Click on a hex to move the robber!
-        </div>
-        <div id="roadBuildingNotice" class="robber-notice" style="display: none;">
-          <strong>Road Building:</strong> Click "Build Road" to place your free roads (<span id="freeRoadsRemaining">2</span> remaining)
-        </div>
-        <div class="dice-container">
-          <div id="diceResult"></div>
-        </div>
+      <div id="robberNotice" class="robber-notice" style="display: none;">
+        Click on a hex to move the robber!
+      </div>
+      <div id="knightNotice" class="robber-notice" style="display: none;">
+        Playing Knight Card - Click on a hex to move the robber!
+      </div>
+      <div id="roadBuildingNotice" class="robber-notice" style="display: none;">
+        <strong>Road Building:</strong> Click "Build Road" to place your free roads (<span id="freeRoadsRemaining">2</span> remaining)
       </div>
 
       <div class="game-main">
@@ -65,42 +56,34 @@
         </div>
 
         <div class="sidebar">
+          <!-- Game Info -->
+          <div class="game-info-sidebar">
+            <div class="phase-timeline">
+              <div class="phase-step" data-phase="setup">
+                <div class="phase-dot"></div>
+                <div class="phase-label">Setup</div>
+              </div>
+              <div class="phase-line"></div>
+              <div class="phase-step" data-phase="playing">
+                <div class="phase-dot"></div>
+                <div class="phase-label">Playing</div>
+              </div>
+              <div class="phase-line"></div>
+              <div class="phase-step" data-phase="finished">
+                <div class="phase-dot"></div>
+                <div class="phase-label">Game Over</div>
+              </div>
+            </div>
+            <div class="dice-container">
+              <div id="diceResult"></div>
+            </div>
+          </div>
+
           <!-- Scoreboard -->
           <div class="scoreboard">
             <h3>Players</h3>
             <div id="scoreboardContent" class="scoreboard-content">
               <!-- Players will be dynamically inserted here -->
-            </div>
-          </div>
-          <div class="player-info">
-            <h3>Your Info</h3>
-            <div id="playerColor" class="color-indicator"></div>
-            <div id="victoryPoints">
-              <h4>Victory Points: <span id="totalVP">0</span></h4>
-              <div id="vpBreakdown" class="vp-breakdown">
-                <div class="vp-item"><span class="vp-label">Settlements:</span> <span id="vpSettlements">0</span></div>
-                <div class="vp-item"><span class="vp-label">Cities:</span> <span id="vpCities">0</span></div>
-                <div class="vp-item" id="vpLongestRoadItem" style="display: none;"><span class="vp-label">Longest Road:</span> <span>+2</span></div>
-                <div class="vp-item" id="vpLargestArmyItem" style="display: none;"><span class="vp-label">Largest Army:</span> <span>+2</span></div>
-                <div class="vp-item" id="vpDevCardsItem" style="display: none;"><span class="vp-label">VP Cards:</span> <span id="vpDevCards">0</span></div>
-              </div>
-            </div>
-            <div id="playerResources">
-              <h4>Resources:</h4>
-              <div class="resource-list">
-                <div class="resource">Wood: <span id="wood">0</span></div>
-                <div class="resource">Brick: <span id="brick">0</span></div>
-                <div class="resource">Sheep: <span id="sheep">0</span></div>
-                <div class="resource">Wheat: <span id="wheat">0</span></div>
-                <div class="resource">Ore: <span id="ore">0</span></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="development-cards">
-            <h3>Development Cards (<span id="devCardCount">0</span>)</h3>
-            <div id="developmentCardsList" class="dev-cards-list">
-              <p class="no-cards">No development cards yet</p>
             </div>
           </div>
 
@@ -132,11 +115,52 @@
             </button>
           </div>
 
+          <div class="player-info">
+            <h3>Your Resources</h3>
+            <div id="playerResources">
+              <div class="resource-list">
+                <div class="resource">
+                  <span class="resource-icon">🌲</span>
+                  <span class="resource-count" id="wood">0</span>
+                </div>
+                <div class="resource">
+                  <span class="resource-icon">🧱</span>
+                  <span class="resource-count" id="brick">0</span>
+                </div>
+                <div class="resource">
+                  <span class="resource-icon">🐑</span>
+                  <span class="resource-count" id="sheep">0</span>
+                </div>
+                <div class="resource">
+                  <span class="resource-icon">🌾</span>
+                  <span class="resource-count" id="wheat">0</span>
+                </div>
+                <div class="resource">
+                  <span class="resource-icon">⛰️</span>
+                  <span class="resource-count" id="ore">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="development-cards">
+            <h3>Development Cards (<span id="devCardCount">0</span>)</h3>
+            <div id="developmentCardsList" class="dev-cards-list">
+              <p class="no-cards">No development cards yet</p>
+            </div>
+          </div>
+          
         </div>
       </div>
 
-      <div class="message-log">
-        <div id="gameLog"></div>
+      <div class="message-log collapsed">
+        <div class="message-log-header" id="messageLogToggle">
+          <span>Game Log</span>
+          <span class="toggle-icon">▲</span>
+        </div>
+        <div class="message-log-content">
+          <div id="gameLog"></div>
+        </div>
       </div>
     </div>
 
