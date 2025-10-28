@@ -176,12 +176,37 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     game.addPlayer(socket.id, playerName, password);
     socket.join(gameId);
     socket.emit('gameJoined', { gameId, playerId: socket.id, game: game.getState() });
+
+    // Unready all players when a new player joins
+    game.players.forEach(p => p.ready = false);
+
     io.to(gameId).emit('playerJoined', { game: game.getState() });
     await saveGameToCache(gameId, game);
     console.log(`${playerName} joined game ${gameId}`);
 
     // Broadcast updated open games list
     broadcastOpenGames();
+  });
+
+  socket.on('toggleReady', async ({ gameId }: { gameId: string }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const success = game.toggleReady(socket.id);
+    if (!success) return;
+
+    await saveGameToCache(gameId, game);
+    io.to(gameId).emit('playerReadyChanged', { game: game.getState() });
+
+    // Check if all players are ready and auto-start the game
+    if (game.areAllPlayersReady()) {
+      game.start();
+      await saveGameToCache(gameId, game);
+      io.to(gameId).emit('gameStarted', { game: game.getState() });
+
+      // Broadcast updated open games list (game no longer open)
+      broadcastOpenGames();
+    }
   });
 
   socket.on('startGame', async ({ gameId }: { gameId: string }) => {
@@ -209,6 +234,8 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
       games.delete(gameId);
       await gameCache.deleteGame(gameId);
     } else {
+      // Unready all players when someone leaves
+      game.players.forEach(p => p.ready = false);
       await saveGameToCache(gameId, game);
       socket.to(gameId).emit('playerLeft', { game: game.getState() });
     }

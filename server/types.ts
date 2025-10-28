@@ -80,6 +80,7 @@ export interface Player {
   mustDiscard?: number;
   freeRoads?: number;
   disconnected?: boolean;
+  ready?: boolean;
 }
 
 export interface TradeOffer {

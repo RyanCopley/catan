@@ -178,6 +178,11 @@ class GameClient {
       this.updateLobby();
     });
 
+    this.socket.on('playerReadyChanged', (data) => {
+      this.gameState = data.game;
+      this.updateLobby();
+    });
+
     this.socket.on('playerReconnected', (data) => {
       this.gameState = data.game;
       if (this.gameState && this.gameState.diceRoll !== null) {
@@ -507,12 +512,8 @@ class GameClient {
     });
 
     // Lobby screen
-    document.getElementById('startGameBtn').addEventListener('click', () => {
-      if (this.gameState.players.length < 2) {
-        alert('Need at least 2 players to start');
-        return;
-      }
-      this.socket.emit('startGame', { gameId: this.gameId });
+    document.getElementById('readyBtn').addEventListener('click', () => {
+      this.socket.emit('toggleReady', { gameId: this.gameId });
     });
 
     document.getElementById('leaveLobbyBtn').addEventListener('click', () => {
@@ -1443,16 +1444,38 @@ class GameClient {
       const colorDiv = document.createElement('div');
       colorDiv.className = `player-color color-${player.color}`;
       li.appendChild(colorDiv);
-      li.appendChild(document.createTextNode(player.name));
+
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = player.name;
+      li.appendChild(nameSpan);
+
+      // Add ready indicator
+      const readyIndicator = document.createElement('span');
+      readyIndicator.className = 'ready-indicator';
+      if (player.ready) {
+        readyIndicator.textContent = ' ✓ Ready';
+        readyIndicator.style.color = '#51cf66';
+        readyIndicator.style.fontWeight = 'bold';
+      } else {
+        readyIndicator.textContent = ' ✗ Not Ready';
+        readyIndicator.style.color = '#ff6b6b';
+      }
+      li.appendChild(readyIndicator);
+
       playersList.appendChild(li);
     });
 
-    // Only show start button to first player
-    const startBtn = document.getElementById('startGameBtn');
-    if (this.gameState.players[0].id === this.playerId) {
-      startBtn.style.display = 'block';
+    // Update ready button text based on current player's ready state
+    const readyBtn = document.getElementById('readyBtn');
+    const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
+    if (myPlayer && myPlayer.ready) {
+      readyBtn.textContent = 'Unready';
+      readyBtn.classList.remove('btn-primary');
+      readyBtn.classList.add('btn-secondary');
     } else {
-      startBtn.style.display = 'none';
+      readyBtn.textContent = 'Ready';
+      readyBtn.classList.remove('btn-secondary');
+      readyBtn.classList.add('btn-primary');
     }
   }
 

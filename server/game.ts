@@ -96,6 +96,21 @@ export class Game {
     return true;
   }
 
+  toggleReady(playerId: string): boolean {
+    if (this.phase !== 'waiting') return false;
+
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    player.ready = !player.ready;
+    return true;
+  }
+
+  areAllPlayersReady(): boolean {
+    if (this.players.length < 2) return false;
+    return this.players.every(p => p.ready === true);
+  }
+
   start(): boolean {
     if (this.players.length < 2) return false;
 
