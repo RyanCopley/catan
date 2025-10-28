@@ -410,17 +410,6 @@ class GameClient {
       this.socket.emit('createGame', { playerName });
     });
 
-    document.getElementById('joinGameBtn').addEventListener('click', () => {
-      const playerName = document.getElementById('playerName').value.trim();
-      const gameId = document.getElementById('gameId').value.trim().toUpperCase();
-      if (!playerName || !gameId) {
-        alert('Please enter your name and game ID');
-        return;
-      }
-      this.playerName = playerName;
-      this.socket.emit('joinGame', { gameId, playerName });
-    });
-
     // Lobby screen
     document.getElementById('startGameBtn').addEventListener('click', () => {
       if (this.gameState.players.length < 2) {
