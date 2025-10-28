@@ -49,7 +49,8 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
       })),
       currentPlayerIndex: game.currentPlayerIndex,
       turnPhase: game.turnPhase,
-      createdAt: game.startedAt ? new Date(game.startedAt).toISOString() : new Date().toISOString()
+      createdAt: game.startedAt ? new Date(game.startedAt).toISOString() : new Date().toISOString(),
+      lastActivityAt: game.lastActivityAt
     }));
 
     res.json({ games: gamesList });

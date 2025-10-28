@@ -1,6 +1,46 @@
 let socket;
 let currentEditingGameId = null;
 
+// Helper function to format relative time
+function getRelativeTime(timestamp) {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const totalSeconds = Math.floor(diff / 1000);
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const totalHours = Math.floor(totalMinutes / 60);
+  const totalDays = Math.floor(totalHours / 24);
+
+  if (totalDays > 0) {
+    const hours = totalHours % 24;
+    const minutes = totalMinutes % 60;
+    return `${totalDays}d${hours}h${minutes}m`;
+  } else if (totalHours > 0) {
+    const minutes = totalMinutes % 60;
+    const seconds = totalSeconds % 60;
+    return `${totalHours}h${minutes}m${seconds}s`;
+  } else if (totalMinutes > 0) {
+    const seconds = totalSeconds % 60;
+    return `${totalMinutes}m${seconds}s`;
+  } else {
+    return `${totalSeconds}s`;
+  }
+}
+
+// Helper function to get activity class for color coding
+function getActivityClass(timestamp) {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / 60000);
+
+  if (minutes < 10) {
+    return 'last-active-recent'; // Green - active within 10 min
+  } else if (minutes < 20) {
+    return 'last-active-warning'; // Orange - 10-20 min inactive
+  } else {
+    return 'last-active-stale'; // Red - 20+ min inactive
+  }
+}
+
 // Check authentication on load
 async function checkAuth() {
   try {
@@ -146,9 +186,12 @@ function renderGameList(containerId, games) {
             `).join('')}
           </ul>
         ` : ''}
-        ${game.phase === 'playing' ? `
+        ${game.phase === 'playing' || game.phase === 'setup' ? `
           <div><strong>Turn:</strong> ${game.players[game.currentPlayerIndex]?.name || 'Unknown'}</div>
           <div><strong>Phase:</strong> ${game.turnPhase}</div>
+        ` : ''}
+        ${game.phase !== 'waiting' && game.lastActivityAt ? `
+          <div><strong>Last active:</strong> <span class="last-active ${getActivityClass(game.lastActivityAt)}">${getRelativeTime(game.lastActivityAt)}</span></div>
         ` : ''}
       </div>
       <div class="game-actions">
