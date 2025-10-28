@@ -131,6 +131,7 @@ class BoardRenderer {
     this.selectedEdge = null;
     this.hoveredVertex = null;
     this.hoveredEdge = null;
+    this.hoveredHex = null;
     this.render();
   }
 
