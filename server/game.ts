@@ -15,6 +15,7 @@ import {
 export class Game {
   id: string;
   players: Player[];
+  spectators: Set<string>;
   board: Board | null;
   currentPlayerIndex: number;
   phase: GamePhase;
@@ -32,6 +33,7 @@ export class Game {
   constructor(id: string) {
     this.id = id;
     this.players = [];
+    this.spectators = new Set();
     this.board = null;
     this.currentPlayerIndex = 0;
     this.phase = 'waiting';
@@ -71,6 +73,18 @@ export class Game {
 
   hasPlayer(socketId: string): boolean {
     return this.players.some(p => p.id === socketId);
+  }
+
+  addSpectator(socketId: string): void {
+    this.spectators.add(socketId);
+  }
+
+  removeSpectator(socketId: string): void {
+    this.spectators.delete(socketId);
+  }
+
+  hasSpectator(socketId: string): boolean {
+    return this.spectators.has(socketId);
   }
 
   reconnectPlayer(oldSocketId: string, newSocketId: string): boolean {

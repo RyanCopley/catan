@@ -16,6 +16,7 @@ class GameClient {
     this.playerPassword = '';
     this.hiddenOffers = new Set();
     this.hasRolledDice = false;
+    this.isSpectator = false;
 
     this.loadPlayerDataFromStorage();
     this.setupSocketListeners();
@@ -61,8 +62,13 @@ class GameClient {
   checkUrlParams() {
     const urlParams = new URLSearchParams(window.location.search);
     const gameId = urlParams.get('gameId');
+    const spectateId = urlParams.get('spectate');
 
-    if (gameId && this.playerName && this.playerPassword) {
+    if (spectateId) {
+      // Join as spectator
+      this.isSpectator = true;
+      this.socket.emit('spectateGame', { gameId: spectateId });
+    } else if (gameId && this.playerName && this.playerPassword) {
       // Auto-rejoin game from URL params (gameId) and localStorage (name/password)
       this.socket.emit('joinGame', { gameId, playerName: this.playerName, password: this.playerPassword });
     }
@@ -137,6 +143,23 @@ class GameClient {
       this.updateDiceVisibility();
       this.updateUrl();
       this.showLobby();
+    });
+
+    this.socket.on('spectateJoined', (data) => {
+      this.gameId = data.gameId;
+      this.playerId = null; // Spectators don't have a player ID
+      this.gameState = data.game;
+      this.isSpectator = true;
+
+      // Show game screen
+      if (this.gameState.phase === 'setup' || this.gameState.phase === 'playing') {
+        this.showGame();
+        this.updateGameUI();
+      } else {
+        this.showLobby();
+      }
+
+      this.showMessage('You are spectating this game', 'info');
     });
 
     this.socket.on('gameJoined', (data) => {
@@ -1757,10 +1780,10 @@ class GameClient {
     }
 
     // Update buttons
-    const isMyTurn = currentPlayer.id === this.playerId;
+    const isMyTurn = currentPlayer.id === this.playerId && !this.isSpectator;
     const isSetup = this.gameState.phase === 'setup';
     const isFinished = this.gameState.phase === 'finished';
-    const canRoll = isMyTurn && this.gameState.turnPhase === 'roll' && !isSetup && !isFinished;
+    const canRoll = isMyTurn && this.gameState.turnPhase === 'roll' && !isSetup && !isFinished && !this.isSpectator;
 
     let canBuildSettlement = false;
     let canBuildRoad = false;
@@ -1768,14 +1791,14 @@ class GameClient {
     let canBuyDevCard = false;
     let canEndTurn = false;
 
-    if (isSetup && isMyTurn) {
+    if (isSetup && isMyTurn && !this.isSpectator) {
       // During setup, settlement only if not placed yet
       canBuildSettlement = !this.gameState.setupSettlementPlaced;
       // Road only if settlement is placed but road is not
       canBuildRoad = this.gameState.setupSettlementPlaced && !this.gameState.setupRoadPlaced;
       // Can only end turn if both settlement and road are placed
       canEndTurn = this.gameState.setupSettlementPlaced && this.gameState.setupRoadPlaced;
-    } else if (!isSetup && isMyTurn && this.gameState.turnPhase === 'build') {
+    } else if (!isSetup && isMyTurn && this.gameState.turnPhase === 'build' && !this.isSpectator) {
       // Check resources for each building type
       const res = myPlayer.resources;
 
@@ -1793,19 +1816,19 @@ class GameClient {
 
       // Can end turn during build phase (dice already rolled)
       canEndTurn = true;
-    } else if (!isSetup && isMyTurn && this.gameState.turnPhase === 'roll') {
+    } else if (!isSetup && isMyTurn && this.gameState.turnPhase === 'roll' && !this.isSpectator) {
       // Cannot end turn until dice are rolled
       canEndTurn = false;
     }
 
-    document.getElementById('rollDiceBtn').disabled = !canRoll;
-    document.getElementById('buildSettlementBtn').disabled = !canBuildSettlement;
-    document.getElementById('buildRoadBtn').disabled = !canBuildRoad;
-    document.getElementById('buildCityBtn').disabled = !canBuildCity;
-    document.getElementById('buyDevCardBtn').disabled = !canBuyDevCard;
-    document.getElementById('tradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build');
-    document.getElementById('bankTradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build');
-    document.getElementById('endTurnBtn').disabled = !canEndTurn;
+    document.getElementById('rollDiceBtn').disabled = !canRoll || this.isSpectator;
+    document.getElementById('buildSettlementBtn').disabled = !canBuildSettlement || this.isSpectator;
+    document.getElementById('buildRoadBtn').disabled = !canBuildRoad || this.isSpectator;
+    document.getElementById('buildCityBtn').disabled = !canBuildCity || this.isSpectator;
+    document.getElementById('buyDevCardBtn').disabled = !canBuyDevCard || this.isSpectator;
+    document.getElementById('tradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build') || this.isSpectator;
+    document.getElementById('bankTradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build') || this.isSpectator;
+    document.getElementById('endTurnBtn').disabled = !canEndTurn || this.isSpectator;
 
   }
 

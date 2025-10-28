@@ -222,6 +222,10 @@ class BoardRenderer {
     if (!this.board) return;
 
     const gameClient = window.gameClient;
+
+    // Don't allow clicks if spectating
+    if (gameClient && gameClient.isSpectator) return;
+
     const isRobberMode = (gameClient && gameClient.gameState && gameClient.gameState.turnPhase === 'robber') || this.buildMode === 'robber';
 
     if (isRobberMode && this.hoveredHex) {

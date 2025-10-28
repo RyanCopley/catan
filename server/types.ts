@@ -81,6 +81,7 @@ export interface Player {
   freeRoads?: number;
   disconnected?: boolean;
   ready?: boolean;
+  spectator?: boolean;
 }
 
 export interface TradeOffer {

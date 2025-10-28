@@ -152,6 +152,7 @@ function renderGameList(containerId, games) {
         ` : ''}
       </div>
       <div class="game-actions">
+        <button class="btn btn-secondary" onclick="spectateGame('${game.id}')">Spectate</button>
         ${game.phase !== 'waiting' ? `
           <button class="btn btn-secondary" onclick="editGameState('${game.id}')">Edit State</button>
         ` : ''}
@@ -159,6 +160,11 @@ function renderGameList(containerId, games) {
       </div>
     </div>
   `).join('');
+}
+
+function spectateGame(gameId) {
+  // Open the game in a new tab/window with spectate mode
+  window.open(`/?spectate=${gameId}`, '_blank');
 }
 
 async function deleteGame(gameId) {

@@ -126,6 +126,30 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     broadcastOpenGames();
   });
 
+  socket.on('spectateGame', async ({ gameId }: { gameId: string }) => {
+    let game = games.get(gameId);
+
+    // If not in memory, try to load from cache
+    if (!game) {
+      console.log(`Game ${gameId} not in memory, checking cache...`);
+      const loadedGame = await loadGameFromCache(gameId, games);
+      if (loadedGame) {
+        console.log(`Game ${gameId} loaded from cache`);
+        game = loadedGame;
+      }
+    }
+
+    if (!game) {
+      socket.emit('error', { message: 'Game not found' });
+      return;
+    }
+
+    game.addSpectator(socket.id);
+    socket.join(gameId);
+    socket.emit('spectateJoined', { gameId, game: game.getState() });
+    console.log(`Spectator ${socket.id} joined game ${gameId}`);
+  });
+
   socket.on('joinGame', async ({ gameId, playerName, password }: { gameId: string; playerName: string; password: string }) => {
     let game = games.get(gameId);
 
@@ -552,6 +576,10 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
         await saveGameToCache(gameId, game);
         io.to(gameId).emit('playerDisconnected', { playerId: socket.id, game: game.getState() });
         console.log(`Player ${socket.id} disconnected from game ${gameId} (phase: ${game.phase})`);
+      } else if (game.hasSpectator(socket.id)) {
+        // Remove spectator
+        game.removeSpectator(socket.id);
+        console.log(`Spectator ${socket.id} disconnected from game ${gameId}`);
       }
     }
 
