@@ -3,9 +3,15 @@ class BoardRenderer {
     this.canvas = document.getElementById(canvasId);
     this.ctx = this.canvas.getContext('2d');
     this.board = null;
-    this.scale = 60;
-    this.offsetX = 400;
-    this.offsetY = 350;
+    this.baseScale = 80; // Increased from 60 for larger board
+    this.scale = 80;
+    this.zoom = 1.0;
+    this.minZoom = 0.5;
+    this.maxZoom = 3.0;
+    this.offsetX = 0;
+    this.offsetY = 0;
+    this.isPanning = false;
+    this.panStart = { x: 0, y: 0 };
     this.selectedVertex = null;
     this.selectedEdge = null;
     this.buildMode = null; // 'settlement', 'road', 'city'
@@ -30,12 +36,77 @@ class BoardRenderer {
       orange: '#ff922b'
     };
 
+    this.resizeCanvas();
+    this.centerBoard();
     this.setupEventListeners();
+  }
+
+  resizeCanvas() {
+    const container = this.canvas.parentElement;
+    this.canvas.width = container.clientWidth;
+    this.canvas.height = container.clientHeight;
+    this.centerBoard();
+    if (this.board) {
+      this.render();
+    }
+  }
+
+  centerBoard() {
+    this.offsetX = this.canvas.width / 2;
+    this.offsetY = this.canvas.height / 2;
   }
 
   setupEventListeners() {
     this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
     this.canvas.addEventListener('click', (e) => this.handleClick(e));
+    this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
+    this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+    this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+    this.canvas.addEventListener('mouseleave', (e) => this.handleMouseUp(e));
+    window.addEventListener('resize', () => this.resizeCanvas());
+  }
+
+  handleWheel(e) {
+    e.preventDefault();
+
+    const rect = this.canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Calculate world position before zoom
+    const worldXBefore = (mouseX - this.offsetX) / this.scale;
+    const worldYBefore = (mouseY - this.offsetY) / this.scale;
+
+    // Update zoom
+    const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom * zoomDelta));
+    this.scale = this.baseScale * this.zoom;
+
+    // Calculate world position after zoom
+    const worldXAfter = (mouseX - this.offsetX) / this.scale;
+    const worldYAfter = (mouseY - this.offsetY) / this.scale;
+
+    // Adjust offset to keep mouse position fixed
+    this.offsetX += (worldXAfter - worldXBefore) * this.scale;
+    this.offsetY += (worldYAfter - worldYBefore) * this.scale;
+
+    this.render();
+  }
+
+  handleMouseDown(e) {
+    if (e.button === 0 && !this.buildMode) {
+      // Only pan if not in build mode
+      this.isPanning = true;
+      this.panStart = { x: e.clientX, y: e.clientY };
+      this.canvas.style.cursor = 'grabbing';
+    }
+  }
+
+  handleMouseUp(e) {
+    if (this.isPanning) {
+      this.isPanning = false;
+      this.canvas.style.cursor = 'default';
+    }
   }
 
   setBoard(board) {
@@ -65,6 +136,17 @@ class BoardRenderer {
 
   handleMouseMove(e) {
     if (!this.board) return;
+
+    // Handle panning
+    if (this.isPanning) {
+      const dx = e.clientX - this.panStart.x;
+      const dy = e.clientY - this.panStart.y;
+      this.offsetX += dx;
+      this.offsetY += dy;
+      this.panStart = { x: e.clientX, y: e.clientY };
+      this.render();
+      return;
+    }
 
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
