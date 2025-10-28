@@ -13,7 +13,93 @@ type NetworkSnapshot = {
   txBytes: number;
 };
 
+type CpuTimes = {
+  user: number;
+  nice: number;
+  sys: number;
+  idle: number;
+  irq: number;
+};
+
+type CpuSnapshot = {
+  timestamp: number;
+  cores: CpuTimes[];
+};
+
+type NetworkUsageMetrics = {
+  bytesReceived: number;
+  bytesSent: number;
+  receiveRate: number | null;
+  sendRate: number | null;
+  lastSampledAt: string;
+};
+
+type MetricHistorySample = {
+  timestamp: number;
+  cpuUsagePercent: number | null;
+  systemMemoryUsedBytes: number;
+  totalSystemMemoryBytes: number;
+  processMemoryRssBytes: number;
+  processHeapUsedBytes: number;
+  networkReceiveRateBytes: number | null;
+  networkSendRateBytes: number | null;
+};
+
+const METRIC_HISTORY_LIMIT = 3600; // one hour at 1s resolution
+const METRIC_SAMPLE_INTERVAL_MS = 1000;
+
 let lastNetworkSnapshot: NetworkSnapshot | null = null;
+let lastCpuSnapshot: CpuSnapshot | null = null;
+let latestNetworkUsage: NetworkUsageMetrics | null = null;
+const metricHistory: MetricHistorySample[] = [];
+let metricsSamplerStarted = false;
+
+function cloneCpuTimes(cpus: os.CpuInfo[]): CpuTimes[] {
+  return cpus.map(cpu => ({ ...cpu.times }));
+}
+
+function calculateCpuUsagePercent(now: number, cpus: os.CpuInfo[]): number | null {
+  if (!cpus.length) {
+    lastCpuSnapshot = null;
+    return null;
+  }
+
+  if (!lastCpuSnapshot || lastCpuSnapshot.cores.length !== cpus.length) {
+    lastCpuSnapshot = { timestamp: now, cores: cloneCpuTimes(cpus) };
+    return null;
+  }
+
+  let idleDelta = 0;
+  let totalDelta = 0;
+
+  cpus.forEach((cpu, index) => {
+    const previous = lastCpuSnapshot?.cores[index];
+    if (!previous) {
+      return;
+    }
+
+    const user = cpu.times.user - previous.user;
+    const nice = cpu.times.nice - previous.nice;
+    const sys = cpu.times.sys - previous.sys;
+    const idle = cpu.times.idle - previous.idle;
+    const irq = cpu.times.irq - previous.irq;
+    const total = user + nice + sys + idle + irq;
+
+    if (total > 0) {
+      totalDelta += total;
+      idleDelta += idle;
+    }
+  });
+
+  lastCpuSnapshot = { timestamp: now, cores: cloneCpuTimes(cpus) };
+
+  if (totalDelta <= 0) {
+    return null;
+  }
+
+  const usage = ((totalDelta - idleDelta) / totalDelta) * 100;
+  return Math.min(Math.max(usage, 0), 100);
+}
 
 function readNetworkTotals(): { rxBytes: number; txBytes: number } | null {
   try {
@@ -69,55 +155,87 @@ function readNetworkTotals(): { rxBytes: number; txBytes: number } | null {
   }
 }
 
-function getNetworkUsageMetrics(): {
-  bytesReceived: number;
-  bytesSent: number;
-  receiveRate: number | null;
-  sendRate: number | null;
-  lastSampledAt: string;
-} | null {
-  const totals = readNetworkTotals();
-  if (!totals) {
-    return null;
-  }
-
+function recordMetricSample() {
   const now = Date.now();
+  const cpus = os.cpus();
+  const cpuUsagePercent = calculateCpuUsagePercent(now, cpus);
+  const totalSystemMemory = os.totalmem();
+  const freeSystemMemory = os.freemem();
+  const usedSystemMemory = totalSystemMemory - freeSystemMemory;
+  const processMemory = process.memoryUsage();
+
+  const totals = readNetworkTotals();
   let receiveRate: number | null = null;
   let sendRate: number | null = null;
 
-  if (lastNetworkSnapshot) {
-    const elapsedSeconds = (now - lastNetworkSnapshot.timestamp) / 1000;
-    if (elapsedSeconds > 0) {
-      const rxDelta = totals.rxBytes - lastNetworkSnapshot.rxBytes;
-      const txDelta = totals.txBytes - lastNetworkSnapshot.txBytes;
+  if (totals) {
+    if (lastNetworkSnapshot) {
+      const elapsedSeconds = (now - lastNetworkSnapshot.timestamp) / 1000;
+      if (elapsedSeconds > 0) {
+        const rxDelta = totals.rxBytes - lastNetworkSnapshot.rxBytes;
+        const txDelta = totals.txBytes - lastNetworkSnapshot.txBytes;
 
-      if (rxDelta >= 0) {
-        receiveRate = rxDelta / elapsedSeconds;
-      }
+        if (rxDelta >= 0) {
+          receiveRate = rxDelta / elapsedSeconds;
+        }
 
-      if (txDelta >= 0) {
-        sendRate = txDelta / elapsedSeconds;
+        if (txDelta >= 0) {
+          sendRate = txDelta / elapsedSeconds;
+        }
       }
     }
+
+    lastNetworkSnapshot = {
+      timestamp: now,
+      rxBytes: totals.rxBytes,
+      txBytes: totals.txBytes
+    };
+
+    latestNetworkUsage = {
+      bytesReceived: totals.rxBytes,
+      bytesSent: totals.txBytes,
+      receiveRate,
+      sendRate,
+      lastSampledAt: new Date(now).toISOString()
+    };
+  } else {
+    latestNetworkUsage = null;
   }
 
-  lastNetworkSnapshot = {
+  metricHistory.push({
     timestamp: now,
-    rxBytes: totals.rxBytes,
-    txBytes: totals.txBytes
-  };
+    cpuUsagePercent,
+    systemMemoryUsedBytes: usedSystemMemory,
+    totalSystemMemoryBytes: totalSystemMemory,
+    processMemoryRssBytes: processMemory.rss,
+    processHeapUsedBytes: processMemory.heapUsed,
+    networkReceiveRateBytes: receiveRate,
+    networkSendRateBytes: sendRate
+  });
 
-  return {
-    bytesReceived: totals.rxBytes,
-    bytesSent: totals.txBytes,
-    receiveRate,
-    sendRate,
-    lastSampledAt: new Date(now).toISOString()
-  };
+  if (metricHistory.length > METRIC_HISTORY_LIMIT) {
+    metricHistory.splice(0, metricHistory.length - METRIC_HISTORY_LIMIT);
+  }
+}
+
+function ensureMetricsSampler() {
+  if (metricsSamplerStarted) {
+    return;
+  }
+
+  metricsSamplerStarted = true;
+  recordMetricSample();
+  setInterval(recordMetricSample, METRIC_SAMPLE_INTERVAL_MS);
+}
+
+function getNetworkUsageMetrics(): NetworkUsageMetrics | null {
+  return latestNetworkUsage;
 }
 
 export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupService?: any) {
   const router = Router();
+
+  ensureMetricsSampler();
 
   // Serve admin panel HTML
   router.get('/', (req: Request, res: Response) => {
@@ -297,6 +415,20 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
           arrayBuffers: processMemory.arrayBuffers
         },
         network: networkUsage
+      },
+      history: {
+        intervalSeconds: METRIC_SAMPLE_INTERVAL_MS / 1000,
+        sampleCount: metricHistory.length,
+        samples: metricHistory.map(sample => ({
+          timestamp: sample.timestamp,
+          cpuUsagePercent: sample.cpuUsagePercent,
+          systemMemoryUsedBytes: sample.systemMemoryUsedBytes,
+          totalSystemMemoryBytes: sample.totalSystemMemoryBytes,
+          processMemoryRssBytes: sample.processMemoryRssBytes,
+          processHeapUsedBytes: sample.processHeapUsedBytes,
+          networkReceiveRateBytes: sample.networkReceiveRateBytes,
+          networkSendRateBytes: sample.networkSendRateBytes
+        }))
       }
     });
   });

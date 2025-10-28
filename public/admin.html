@@ -165,6 +165,115 @@
       margin-bottom: 20px;
     }
 
+    .metrics-history {
+      margin-top: 30px;
+    }
+
+    .metrics-history-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .metrics-history-header h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a237e;
+    }
+
+    .metrics-history-range {
+      font-size: 12px;
+      color: #546e7a;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .chart-card {
+      background: linear-gradient(135deg, rgba(130, 177, 255, 0.15) 0%, rgba(179, 229, 252, 0.18) 100%);
+      border-radius: 14px;
+      border: 1px solid rgba(120, 144, 156, 0.2);
+      box-shadow: 0 10px 24px rgba(79, 172, 254, 0.15);
+      padding: 18px 22px 22px;
+      margin-bottom: 20px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #283593;
+    }
+
+    .chart-subtitle {
+      font-size: 12px;
+      color: #607d8b;
+      letter-spacing: 0.02em;
+    }
+
+    .chart-canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.68);
+      overflow: hidden;
+    }
+
+    .chart-canvas-wrapper canvas {
+      width: 100%;
+      height: 220px;
+      display: block;
+    }
+
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #607d8b;
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+      font-size: 12px;
+      color: #37474f;
+    }
+
+    .chart-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 999px;
+      padding: 6px 12px;
+      box-shadow: 0 4px 10px rgba(79, 172, 254, 0.15);
+    }
+
+    .chart-legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .chart-legend-value {
+      font-weight: 600;
+      color: #1a237e;
+    }
+
     .metric-card {
       background: linear-gradient(135deg, rgba(79, 172, 254, 0.12) 0%, rgba(0, 242, 254, 0.12) 100%);
       border-radius: 12px;
@@ -477,6 +586,34 @@
         </div>
         <div id="networkMetrics" class="network-section">
           <div class="network-empty">Collecting network metrics...</div>
+        </div>
+        <div class="metrics-history">
+          <div class="metrics-history-header">
+            <h3>Last Hour Trends</h3>
+            <div id="metricsHistoryRange" class="metrics-history-range">Collecting metrics history...</div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">CPU &amp; Memory</div>
+              <div class="chart-subtitle">Percentage of system capacity</div>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="utilizationChart"></canvas>
+              <div id="utilizationChartEmpty" class="chart-empty">Collecting metrics history...</div>
+            </div>
+            <div id="utilizationLegend" class="chart-legend"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header">
+              <div class="chart-title">Network Throughput</div>
+              <div class="chart-subtitle">Megabytes per second</div>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="networkChart"></canvas>
+              <div id="networkChartEmpty" class="chart-empty">Collecting network history...</div>
+            </div>
+            <div id="networkLegend" class="chart-legend"></div>
+          </div>
         </div>
       </div>
 

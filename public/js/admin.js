@@ -4,6 +4,8 @@ let metricsInterval = null;
 let latencyInterval = null;
 let latestSocketLatency = null;
 let latestMetrics = null;
+let latestMetricsHistory = null;
+let metricsHistoryResizeTimeout = null;
 
 // Helper function to format relative time
 function getRelativeTime(timestamp) {
@@ -99,6 +101,423 @@ function formatLatencyValue(latency) {
   }
 
   return `${Math.round(latency)} ms`;
+}
+
+function formatHistoryTimestamp(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function getLatestValue(values) {
+  for (let i = values.length - 1; i >= 0; i -= 1) {
+    const value = values[i];
+    if (Number.isFinite(value)) {
+      return Number(value);
+    }
+  }
+  return null;
+}
+
+function renderLegendHtml(items) {
+  return items
+    .map(item => {
+      const valueText = item.value != null && Number.isFinite(item.value)
+        ? (item.formatter ? item.formatter(item.value) : item.value.toFixed(2))
+        : '—';
+
+      return `
+        <div class="chart-legend-item">
+          <span class="chart-legend-swatch" style="background: ${item.color};"></span>
+          <span>${item.label}</span>
+          <span class="chart-legend-value">${valueText}</span>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function drawLineChart(canvas, timestamps, seriesList, options = {}) {
+  if (!canvas) {
+    return false;
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return false;
+  }
+
+  const cssWidth = canvas.clientWidth || canvas.parentElement?.clientWidth || 0;
+  const cssHeight = canvas.clientHeight || canvas.parentElement?.clientHeight || 0;
+
+  if (!cssWidth || !cssHeight || !timestamps.length) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return false;
+  }
+
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.round(cssWidth * dpr);
+  const height = Math.round(cssHeight * dpr);
+
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+
+  const numericValues = [];
+  seriesList.forEach(series => {
+    series.values.forEach(value => {
+      if (Number.isFinite(value)) {
+        numericValues.push(Number(value));
+      }
+    });
+  });
+
+  if (!numericValues.length) {
+    return false;
+  }
+
+  const padding = {
+    top: 16,
+    right: 18,
+    bottom: 32,
+    left: 60
+  };
+
+  const plotWidth = cssWidth - padding.left - padding.right;
+  const plotHeight = cssHeight - padding.top - padding.bottom;
+
+  if (plotWidth <= 0 || plotHeight <= 0) {
+    return false;
+  }
+
+  let min = options.minValue != null ? options.minValue : Math.min(...numericValues);
+  let max = options.maxValue != null ? options.maxValue : Math.max(...numericValues);
+
+  if (max <= min) {
+    const adjustment = Math.abs(min) < 1 ? 1 : Math.abs(min) * 0.1;
+    max = min + adjustment;
+  }
+
+  const valueFormatter = options.valueFormatter || (value => {
+    if (Math.abs(value) >= 100) {
+      return value.toFixed(0);
+    }
+    if (Math.abs(value) >= 10) {
+      return value.toFixed(1);
+    }
+    return value.toFixed(2);
+  });
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  // Grid lines
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(84, 110, 122, 0.22)';
+  const gridLines = 4;
+  for (let i = 0; i <= gridLines; i += 1) {
+    const y = padding.top + (plotHeight * i) / gridLines;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(cssWidth - padding.right, y);
+    ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = 'rgba(55, 71, 79, 0.65)';
+  ctx.beginPath();
+  ctx.moveTo(padding.left, padding.top);
+  ctx.lineTo(padding.left, cssHeight - padding.bottom);
+  ctx.lineTo(cssWidth - padding.right, cssHeight - padding.bottom);
+  ctx.stroke();
+
+  // Series lines
+  seriesList.forEach(series => {
+    ctx.beginPath();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = series.color;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    let drawing = false;
+    series.values.forEach((value, index) => {
+      if (!Number.isFinite(value)) {
+        drawing = false;
+        return;
+      }
+
+      const ratio = timestamps.length > 1 ? index / (timestamps.length - 1) : 0;
+      const x = padding.left + ratio * plotWidth;
+      const normalized = (Number(value) - min) / (max - min);
+      const y = padding.top + (1 - normalized) * plotHeight;
+
+      if (!drawing) {
+        ctx.moveTo(x, y);
+        drawing = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+
+    ctx.stroke();
+  });
+
+  ctx.fillStyle = 'rgba(38, 50, 56, 0.78)';
+  ctx.font = '12px "Segoe UI", Tahoma, sans-serif';
+
+  // Y-axis labels
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  const yLabelOffset = 8;
+  ctx.fillText(valueFormatter(max), padding.left - yLabelOffset, padding.top);
+  ctx.fillText(valueFormatter((max + min) / 2), padding.left - yLabelOffset, padding.top + plotHeight / 2);
+  ctx.fillText(valueFormatter(min), padding.left - yLabelOffset, padding.top + plotHeight);
+
+  // X-axis labels
+  ctx.textBaseline = 'top';
+  const xLabelY = cssHeight - padding.bottom + 6;
+  ctx.textAlign = 'left';
+  ctx.fillText(formatHistoryTimestamp(timestamps[0]), padding.left, xLabelY);
+  ctx.textAlign = 'right';
+  ctx.fillText(formatHistoryTimestamp(timestamps[timestamps.length - 1]), cssWidth - padding.right, xLabelY);
+
+  ctx.restore();
+
+  return true;
+}
+
+function drawUtilizationChart(history) {
+  const canvas = document.getElementById('utilizationChart');
+  const legendEl = document.getElementById('utilizationLegend');
+  if (!canvas || !legendEl) {
+    return false;
+  }
+
+  const samples = history.samples || [];
+  if (!samples.length) {
+    legendEl.innerHTML = '';
+    return false;
+  }
+
+  const timestamps = samples.map(sample => sample.timestamp);
+  const cpuValues = samples.map(sample => (Number.isFinite(sample.cpuUsagePercent) ? Number(sample.cpuUsagePercent) : null));
+  const systemMemoryValues = samples.map(sample => {
+    if (!Number.isFinite(sample.systemMemoryUsedBytes) || !Number.isFinite(sample.totalSystemMemoryBytes) || sample.totalSystemMemoryBytes <= 0) {
+      return null;
+    }
+    return (sample.systemMemoryUsedBytes / sample.totalSystemMemoryBytes) * 100;
+  });
+  const processMemoryValues = samples.map(sample => {
+    if (!Number.isFinite(sample.processMemoryRssBytes) || !Number.isFinite(sample.totalSystemMemoryBytes) || sample.totalSystemMemoryBytes <= 0) {
+      return null;
+    }
+    return (sample.processMemoryRssBytes / sample.totalSystemMemoryBytes) * 100;
+  });
+
+  const rendered = drawLineChart(
+    canvas,
+    timestamps,
+    [
+      { label: 'CPU Usage', color: '#3949ab', values: cpuValues },
+      { label: 'System Memory', color: '#00897b', values: systemMemoryValues },
+      { label: 'Process RSS', color: '#ef6c00', values: processMemoryValues }
+    ],
+    {
+      minValue: 0,
+      maxValue: 100,
+      valueFormatter: value => `${value.toFixed(0)}%`
+    }
+  );
+
+  if (!rendered) {
+    legendEl.innerHTML = '';
+    return false;
+  }
+
+  const latestProcessSample = (() => {
+    for (let i = samples.length - 1; i >= 0; i -= 1) {
+      const sample = samples[i];
+      if (Number.isFinite(sample.processMemoryRssBytes)) {
+        return sample;
+      }
+    }
+    return null;
+  })();
+
+  legendEl.innerHTML = renderLegendHtml([
+    {
+      label: 'CPU Usage',
+      color: '#3949ab',
+      value: getLatestValue(cpuValues),
+      formatter: value => `${value.toFixed(1)}%`
+    },
+    {
+      label: 'System Memory',
+      color: '#00897b',
+      value: getLatestValue(systemMemoryValues),
+      formatter: value => `${value.toFixed(1)}%`
+    },
+    {
+      label: 'Process RSS',
+      color: '#ef6c00',
+      value: getLatestValue(processMemoryValues),
+      formatter: value => {
+        const percentText = `${value.toFixed(1)}%`;
+        if (latestProcessSample && Number.isFinite(latestProcessSample.processMemoryRssBytes)) {
+          return `${percentText} · ${formatBytes(latestProcessSample.processMemoryRssBytes)}`;
+        }
+        return percentText;
+      }
+    }
+  ]);
+
+  return true;
+}
+
+function drawNetworkChart(history) {
+  const canvas = document.getElementById('networkChart');
+  const legendEl = document.getElementById('networkLegend');
+  if (!canvas || !legendEl) {
+    return false;
+  }
+
+  const samples = history.samples || [];
+  if (!samples.length) {
+    legendEl.innerHTML = '';
+    return false;
+  }
+
+  const timestamps = samples.map(sample => sample.timestamp);
+  const downloadValues = samples.map(sample => (Number.isFinite(sample.networkReceiveRateBytes) ? Number(sample.networkReceiveRateBytes) : null));
+  const uploadValues = samples.map(sample => (Number.isFinite(sample.networkSendRateBytes) ? Number(sample.networkSendRateBytes) : null));
+
+  const rendered = drawLineChart(
+    canvas,
+    timestamps,
+    [
+      { label: 'Download', color: '#1e88e5', values: downloadValues },
+      { label: 'Upload', color: '#c2185b', values: uploadValues }
+    ],
+    {
+      minValue: 0,
+      valueFormatter: value => formatRate(value)
+    }
+  );
+
+  if (!rendered) {
+    legendEl.innerHTML = '';
+    return false;
+  }
+
+  legendEl.innerHTML = renderLegendHtml([
+    {
+      label: 'Download',
+      color: '#1e88e5',
+      value: getLatestValue(downloadValues),
+      formatter: value => formatRate(value)
+    },
+    {
+      label: 'Upload',
+      color: '#c2185b',
+      value: getLatestValue(uploadValues),
+      formatter: value => formatRate(value)
+    }
+  ]);
+
+  return true;
+}
+
+function renderMetricsHistory(history) {
+  const rangeEl = document.getElementById('metricsHistoryRange');
+  const utilizationCanvas = document.getElementById('utilizationChart');
+  const utilizationEmpty = document.getElementById('utilizationChartEmpty');
+  const networkCanvas = document.getElementById('networkChart');
+  const networkEmpty = document.getElementById('networkChartEmpty');
+
+  if (!history || !Array.isArray(history.samples) || history.samples.length === 0) {
+    latestMetricsHistory = null;
+    if (rangeEl) {
+      rangeEl.textContent = 'Collecting metrics history...';
+    }
+    if (utilizationCanvas) {
+      utilizationCanvas.style.display = 'none';
+    }
+    if (utilizationEmpty) {
+      utilizationEmpty.style.display = 'flex';
+    }
+    if (networkCanvas) {
+      networkCanvas.style.display = 'none';
+    }
+    if (networkEmpty) {
+      networkEmpty.style.display = 'flex';
+    }
+    const utilizationLegend = document.getElementById('utilizationLegend');
+    const networkLegend = document.getElementById('networkLegend');
+    if (utilizationLegend) {
+      utilizationLegend.innerHTML = '';
+    }
+    if (networkLegend) {
+      networkLegend.innerHTML = '';
+    }
+    return;
+  }
+
+  latestMetricsHistory = history;
+
+  if (rangeEl) {
+    const intervalSeconds = Number(history.intervalSeconds) || 1;
+    const totalSeconds = Math.max(1, Math.round(history.samples.length * intervalSeconds));
+    rangeEl.textContent = `Window: ${formatDuration(totalSeconds)} · ${intervalSeconds.toFixed(0)}s intervals`;
+  }
+
+  const hasUtilization = drawUtilizationChart(history);
+  if (utilizationCanvas) {
+    utilizationCanvas.style.display = hasUtilization ? 'block' : 'none';
+  }
+  if (utilizationEmpty) {
+    utilizationEmpty.style.display = hasUtilization ? 'none' : 'flex';
+    if (!hasUtilization) {
+      utilizationEmpty.textContent = 'Collecting metrics history...';
+    }
+  }
+
+  const hasNetwork = drawNetworkChart(history);
+  if (networkCanvas) {
+    networkCanvas.style.display = hasNetwork ? 'block' : 'none';
+  }
+  if (networkEmpty) {
+    networkEmpty.style.display = hasNetwork ? 'none' : 'flex';
+    if (!hasNetwork) {
+      networkEmpty.textContent = 'Collecting network history...';
+    }
+  }
+}
+
+function scheduleMetricsHistoryRedraw() {
+  if (!latestMetricsHistory) {
+    return;
+  }
+
+  if (metricsHistoryResizeTimeout) {
+    clearTimeout(metricsHistoryResizeTimeout);
+  }
+
+  metricsHistoryResizeTimeout = setTimeout(() => {
+    metricsHistoryResizeTimeout = null;
+    if (latestMetricsHistory) {
+      drawUtilizationChart(latestMetricsHistory);
+      drawNetworkChart(latestMetricsHistory);
+    }
+  }, 150);
 }
 
 function renderNetworkMetrics() {
@@ -262,6 +681,7 @@ async function fetchSystemMetrics() {
 
     const data = await response.json();
     renderSystemMetrics(data.metrics);
+    renderMetricsHistory(data.history);
 
     if (statusEl) {
       const generatedAt = data.metrics?.generatedAt ? new Date(data.metrics.generatedAt) : new Date();
@@ -379,7 +799,13 @@ function showLoginScreen() {
   }
   latestMetrics = null;
   latestSocketLatency = null;
+  latestMetricsHistory = null;
+  if (metricsHistoryResizeTimeout) {
+    clearTimeout(metricsHistoryResizeTimeout);
+    metricsHistoryResizeTimeout = null;
+  }
   renderNetworkMetrics();
+  renderMetricsHistory(null);
   document.getElementById('loginScreen').style.display = 'block';
   document.getElementById('adminPanel').style.display = 'none';
 }
@@ -634,4 +1060,5 @@ document.getElementById('editModal').addEventListener('click', (e) => {
 });
 
 // Initialize on load
+window.addEventListener('resize', scheduleMetricsHistoryRedraw);
 checkAuth();
