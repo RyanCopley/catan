@@ -34,6 +34,12 @@ type NetworkUsageMetrics = {
   lastSampledAt: string;
 };
 
+type RequestUsageMetrics = {
+  totalRate: number;
+  perEventRates: Record<string, number>;
+  lastSampledAt: string;
+};
+
 type MetricHistorySample = {
   timestamp: number;
   cpuUsagePercent: number | null;
@@ -43,16 +49,24 @@ type MetricHistorySample = {
   processHeapUsedBytes: number;
   networkReceiveRateBytes: number | null;
   networkSendRateBytes: number | null;
+  socketRequestTotalRate: number | null;
+  socketRequestRatesByEvent: Record<string, number> | null;
 };
 
 const METRIC_HISTORY_LIMIT = 3600; // one hour at 1s resolution
 const METRIC_SAMPLE_INTERVAL_MS = 1000;
+const METRIC_HISTORY_WINDOW_MS = METRIC_HISTORY_LIMIT * METRIC_SAMPLE_INTERVAL_MS;
 
 let lastNetworkSnapshot: NetworkSnapshot | null = null;
 let lastCpuSnapshot: CpuSnapshot | null = null;
 let latestNetworkUsage: NetworkUsageMetrics | null = null;
+let latestRequestUsage: RequestUsageMetrics | null = null;
 const metricHistory: MetricHistorySample[] = [];
 let metricsSamplerStarted = false;
+const requestCounters: Map<string, number> = new Map();
+let totalRequestsSinceLastSample = 0;
+let lastRequestSampleTimestamp: number | null = null;
+const requestEventSeenAt: Map<string, number> = new Map();
 
 function cloneCpuTimes(cpus: os.CpuInfo[]): CpuTimes[] {
   return cpus.map(cpu => ({ ...cpu.times }));
@@ -202,6 +216,39 @@ function recordMetricSample() {
     latestNetworkUsage = null;
   }
 
+  const staleEventCutoff = now - METRIC_HISTORY_WINDOW_MS;
+  for (const [eventName, lastSeen] of requestEventSeenAt.entries()) {
+    if (lastSeen < staleEventCutoff) {
+      requestEventSeenAt.delete(eventName);
+      requestCounters.delete(eventName);
+    }
+  }
+
+  let requestRatesByEvent: Record<string, number> | null = null;
+  let requestTotalRate: number | null = null;
+
+  if (lastRequestSampleTimestamp !== null) {
+    const elapsedSeconds = (now - lastRequestSampleTimestamp) / 1000;
+    const safeElapsed = elapsedSeconds > 0 ? elapsedSeconds : 1;
+
+    requestRatesByEvent = {};
+    for (const eventName of requestEventSeenAt.keys()) {
+      const count = requestCounters.get(eventName) ?? 0;
+      requestRatesByEvent[eventName] = count / safeElapsed;
+    }
+
+    requestTotalRate = totalRequestsSinceLastSample / safeElapsed;
+    latestRequestUsage = {
+      totalRate: requestTotalRate,
+      perEventRates: { ...requestRatesByEvent },
+      lastSampledAt: new Date(now).toISOString()
+    };
+  }
+
+  lastRequestSampleTimestamp = now;
+  requestCounters.clear();
+  totalRequestsSinceLastSample = 0;
+
   metricHistory.push({
     timestamp: now,
     cpuUsagePercent,
@@ -210,7 +257,9 @@ function recordMetricSample() {
     processMemoryRssBytes: processMemory.rss,
     processHeapUsedBytes: processMemory.heapUsed,
     networkReceiveRateBytes: receiveRate,
-    networkSendRateBytes: sendRate
+    networkSendRateBytes: sendRate,
+    socketRequestTotalRate: requestTotalRate,
+    socketRequestRatesByEvent: requestRatesByEvent ? { ...requestRatesByEvent } : null
   });
 
   if (metricHistory.length > METRIC_HISTORY_LIMIT) {
@@ -230,6 +279,26 @@ function ensureMetricsSampler() {
 
 function getNetworkUsageMetrics(): NetworkUsageMetrics | null {
   return latestNetworkUsage;
+}
+
+function getRequestUsageMetrics(): RequestUsageMetrics | null {
+  return latestRequestUsage
+    ? {
+        totalRate: latestRequestUsage.totalRate,
+        perEventRates: { ...latestRequestUsage.perEventRates },
+        lastSampledAt: latestRequestUsage.lastSampledAt
+      }
+    : null;
+}
+
+export function recordSocketEvent(eventName: string | symbol): void {
+  if (typeof eventName !== 'string') {
+    return;
+  }
+
+  requestEventSeenAt.set(eventName, Date.now());
+  requestCounters.set(eventName, (requestCounters.get(eventName) ?? 0) + 1);
+  totalRequestsSinceLastSample += 1;
 }
 
 export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupService?: any) {
@@ -388,6 +457,7 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
     const cpus = os.cpus();
     const primaryCpu = cpus[0];
     const networkUsage = getNetworkUsageMetrics();
+    const requestUsage = getRequestUsageMetrics();
 
     res.json({
       metrics: {
@@ -414,7 +484,8 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
           external: processMemory.external,
           arrayBuffers: processMemory.arrayBuffers
         },
-        network: networkUsage
+        network: networkUsage,
+        requests: requestUsage
       },
       history: {
         intervalSeconds: METRIC_SAMPLE_INTERVAL_MS / 1000,
@@ -427,7 +498,9 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
           processMemoryRssBytes: sample.processMemoryRssBytes,
           processHeapUsedBytes: sample.processHeapUsedBytes,
           networkReceiveRateBytes: sample.networkReceiveRateBytes,
-          networkSendRateBytes: sample.networkSendRateBytes
+          networkSendRateBytes: sample.networkSendRateBytes,
+          socketRequestTotalRate: sample.socketRequestTotalRate,
+          socketRequestRatesByEvent: sample.socketRequestRatesByEvent ? { ...sample.socketRequestRatesByEvent } : null
         }))
       }
     });

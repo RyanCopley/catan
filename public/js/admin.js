@@ -7,6 +7,9 @@ let latestMetrics = null;
 let latestMetricsHistory = null;
 let metricsHistoryResizeTimeout = null;
 
+const REQUEST_EVENT_COLORS = ['#f4511e', '#00838f', '#7cb342', '#8e24aa', '#ffb300', '#6d4c41'];
+const TOTAL_REQUEST_COLOR = '#3949ab';
+
 // Helper function to format relative time
 function getRelativeTime(timestamp) {
   const now = Date.now();
@@ -93,6 +96,22 @@ function formatRate(bytesPerSecond) {
   }
 
   return `${formatBytes(bytesPerSecond)}/s`;
+}
+
+function formatRequestsPerSecond(rate) {
+  if (!Number.isFinite(rate) || rate < 0) {
+    return 'Calculating...';
+  }
+
+  if (rate >= 100) {
+    return `${rate.toFixed(0)} req/s`;
+  }
+
+  if (rate >= 10) {
+    return `${rate.toFixed(1)} req/s`;
+  }
+
+  return `${rate.toFixed(2)} req/s`;
 }
 
 function formatLatencyValue(latency) {
@@ -436,12 +455,100 @@ function drawNetworkChart(history) {
   return true;
 }
 
+function drawRequestsChart(history) {
+  const canvas = document.getElementById('requestsChart');
+  const legendEl = document.getElementById('requestsLegend');
+  if (!canvas || !legendEl) {
+    return false;
+  }
+
+  const samples = history.samples || [];
+  if (!samples.length) {
+    legendEl.innerHTML = '';
+    return false;
+  }
+
+  const timestamps = samples.map(sample => sample.timestamp);
+  const totalValues = samples.map(sample => {
+    if (sample.socketRequestTotalRate == null) {
+      return null;
+    }
+    const numeric = Number(sample.socketRequestTotalRate);
+    return Number.isFinite(numeric) ? numeric : null;
+  });
+
+  const latestSample = samples[samples.length - 1] || null;
+  const latestPerEvent = latestSample?.socketRequestRatesByEvent || {};
+  const sortedEvents = Object.entries(latestPerEvent)
+    .map(([name, value]) => {
+      const numeric = Number(value);
+      return [name, Number.isFinite(numeric) ? numeric : 0];
+    })
+    .sort((a, b) => b[1] - a[1]);
+
+  const positiveEvents = sortedEvents.filter(([, value]) => value > 0);
+  const topEventEntries = (positiveEvents.length ? positiveEvents : sortedEvents).slice(0, REQUEST_EVENT_COLORS.length);
+
+  const seriesList = [
+    { label: 'Total Requests', color: TOTAL_REQUEST_COLOR, values: totalValues }
+  ];
+
+  const legendItems = [
+    {
+      label: 'Total Requests',
+      color: TOTAL_REQUEST_COLOR,
+      value: getLatestValue(totalValues),
+      formatter: value => formatRequestsPerSecond(value)
+    }
+  ];
+
+  topEventEntries.forEach(([eventName], index) => {
+    const color = REQUEST_EVENT_COLORS[index % REQUEST_EVENT_COLORS.length];
+    const values = samples.map(sample => {
+      const perEvent = sample.socketRequestRatesByEvent;
+      if (!perEvent || perEvent[eventName] == null) {
+        return 0;
+      }
+      const numeric = Number(perEvent[eventName]);
+      return Number.isFinite(numeric) ? numeric : 0;
+    });
+
+    seriesList.push({ label: eventName, color, values });
+    legendItems.push({
+      label: eventName,
+      color,
+      value: getLatestValue(values),
+      formatter: value => formatRequestsPerSecond(value)
+    });
+  });
+
+  const rendered = drawLineChart(
+    canvas,
+    timestamps,
+    seriesList,
+    {
+      minValue: 0,
+      valueFormatter: value => formatRequestsPerSecond(value)
+    }
+  );
+
+  if (!rendered) {
+    legendEl.innerHTML = '';
+    return false;
+  }
+
+  legendEl.innerHTML = renderLegendHtml(legendItems);
+  return true;
+}
+
 function renderMetricsHistory(history) {
   const rangeEl = document.getElementById('metricsHistoryRange');
   const utilizationCanvas = document.getElementById('utilizationChart');
   const utilizationEmpty = document.getElementById('utilizationChartEmpty');
   const networkCanvas = document.getElementById('networkChart');
   const networkEmpty = document.getElementById('networkChartEmpty');
+  const requestsCanvas = document.getElementById('requestsChart');
+  const requestsEmpty = document.getElementById('requestsChartEmpty');
 
   if (!history || !Array.isArray(history.samples) || history.samples.length === 0) {
     latestMetricsHistory = null;
@@ -460,13 +567,23 @@ function renderMetricsHistory(history) {
     if (networkEmpty) {
       networkEmpty.style.display = 'flex';
     }
+    if (requestsCanvas) {
+      requestsCanvas.style.display = 'none';
+    }
+    if (requestsEmpty) {
+      requestsEmpty.style.display = 'flex';
+    }
     const utilizationLegend = document.getElementById('utilizationLegend');
     const networkLegend = document.getElementById('networkLegend');
+    const requestsLegend = document.getElementById('requestsLegend');
     if (utilizationLegend) {
       utilizationLegend.innerHTML = '';
     }
     if (networkLegend) {
       networkLegend.innerHTML = '';
+    }
+    if (requestsLegend) {
+      requestsLegend.innerHTML = '';
     }
     return;
   }
@@ -500,6 +617,17 @@ function renderMetricsHistory(history) {
       networkEmpty.textContent = 'Collecting network history...';
     }
   }
+
+  const hasRequests = drawRequestsChart(history);
+  if (requestsCanvas) {
+    requestsCanvas.style.display = hasRequests ? 'block' : 'none';
+  }
+  if (requestsEmpty) {
+    requestsEmpty.style.display = hasRequests ? 'none' : 'flex';
+    if (!hasRequests) {
+      requestsEmpty.textContent = 'Collecting request history...';
+    }
+  }
 }
 
 function scheduleMetricsHistoryRedraw() {
@@ -516,6 +644,7 @@ function scheduleMetricsHistoryRedraw() {
     if (latestMetricsHistory) {
       drawUtilizationChart(latestMetricsHistory);
       drawNetworkChart(latestMetricsHistory);
+      drawRequestsChart(latestMetricsHistory);
     }
   }, 150);
 }
@@ -528,6 +657,7 @@ function renderNetworkMetrics() {
 
   const metrics = latestMetrics;
   const network = metrics?.network ?? null;
+  const requests = metrics?.requests ?? null;
 
   const cards = [];
 
@@ -546,6 +676,49 @@ function renderNetworkMetrics() {
         </div>
       </div>
     `);
+  } else if (metrics) {
+    cards.push(`
+      <div class="metric-card">
+        <div class="metric-title">Network Usage</div>
+        <div class="metric-value">—</div>
+        <div class="metric-subtext">Network usage metrics unavailable on this system.</div>
+      </div>
+    `);
+  }
+
+  if (requests) {
+    const sampledAt = requests.lastSampledAt ? new Date(requests.lastSampledAt).toLocaleTimeString() : null;
+    const totalRateText = formatRequestsPerSecond(requests.totalRate);
+    const topEvents = Object.entries(requests.perEventRates ?? {})
+      .map(([name, value]) => {
+        const numeric = Number(value);
+        return [name, Number.isFinite(numeric) ? numeric : 0];
+      })
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+    const eventsText = topEvents.length
+      ? topEvents
+          .map(([name, value]) => `${name}: ${formatRequestsPerSecond(value)}`)
+          .join('<br>')
+      : 'No events recorded in the last sample';
+
+    cards.push(`
+      <div class="metric-card">
+        <div class="metric-title">Socket Throughput</div>
+        <div class="metric-value">${totalRateText}</div>
+        <div class="metric-subtext">
+          ${eventsText}${sampledAt ? `<br>Sampled ${sampledAt}` : ''}
+        </div>
+      </div>
+    `);
+  } else if (metrics) {
+    cards.push(`
+      <div class="metric-card">
+        <div class="metric-title">Socket Throughput</div>
+        <div class="metric-value">—</div>
+        <div class="metric-subtext">Collecting socket request metrics...</div>
+      </div>
+    `);
   }
 
   const latencySubtitle = (() => {
@@ -562,19 +735,17 @@ function renderNetworkMetrics() {
     <div class="metric-card">
       <div class="metric-title">WebSocket Latency</div>
       <div class="metric-value">${formatLatencyValue(latestSocketLatency)}</div>
-      <div class="metric-subtext">${latencySubtitle}</div>
+    <div class="metric-subtext">${latencySubtitle}</div>
     </div>
   `);
 
-  const statusMessage = (() => {
-    if (!metrics) {
-      return '<div class="network-empty">Collecting network metrics...</div>';
-    }
-    if (!network) {
-      return '<div class="network-empty">Network usage metrics unavailable on this system.</div>';
-    }
-    return '';
-  })();
+  const statusMessages = [];
+  if (!metrics) {
+    statusMessages.push('Collecting network metrics...');
+  }
+  const statusMessage = statusMessages.length
+    ? `<div class="network-empty">${statusMessages.join('<br>')}</div>`
+    : '';
 
   container.innerHTML = `
     ${statusMessage}
