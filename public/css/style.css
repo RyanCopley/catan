@@ -1114,3 +1114,62 @@ input[type="text"]:focus {
     transform: translateX(200%);
   }
 }
+
+/* Connection Status Indicator */
+.connection-status {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 14px;
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  display: none;
+}
+
+.connection-status.status-connected {
+  background-color: #51cf66;
+  color: white;
+  animation: slideInRight 0.3s ease;
+}
+
+.connection-status.status-disconnected {
+  background-color: #ff6b6b;
+  color: white;
+  animation: slideInRight 0.3s ease, pulse 1.5s ease-in-out infinite;
+}
+
+.connection-status.status-reconnecting {
+  background-color: #ffa94d;
+  color: white;
+  animation: slideInRight 0.3s ease, pulse 1.5s ease-in-out infinite;
+}
+
+.connection-status.status-failed {
+  background-color: #c92a2a;
+  color: white;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

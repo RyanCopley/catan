@@ -1,6 +1,13 @@
 class GameClient {
   constructor() {
-    this.socket = io();
+    // Configure Socket.IO with auto-reconnect settings
+    this.socket = io({
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity,
+      timeout: 20000
+    });
     this.gameId = null;
     this.playerId = null;
     this.gameState = null;
@@ -38,6 +45,37 @@ class GameClient {
   setupSocketListeners() {
     this.socket.on('connect', () => {
       console.log('Connected to server');
+      this.showConnectionStatus('connected');
+
+      // Auto-rejoin game if we were in one
+      if (this.gameId && this.playerName) {
+        console.log('Reconnecting to game:', this.gameId);
+        this.socket.emit('joinGame', { gameId: this.gameId, playerName: this.playerName });
+      }
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('Disconnected from server:', reason);
+      this.showConnectionStatus('disconnected');
+    });
+
+    this.socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('Reconnection attempt:', attemptNumber);
+      this.showConnectionStatus('reconnecting', attemptNumber);
+    });
+
+    this.socket.on('reconnect', (attemptNumber) => {
+      console.log('Reconnected after', attemptNumber, 'attempts');
+      this.showConnectionStatus('connected');
+    });
+
+    this.socket.on('reconnect_error', (error) => {
+      console.error('Reconnection error:', error);
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('Failed to reconnect');
+      this.showConnectionStatus('failed');
     });
 
     this.socket.on('gameCreated', (data) => {
@@ -1604,6 +1642,61 @@ class GameClient {
       resource
     });
     this.closeMonopolyModal();
+  }
+
+  showConnectionStatus(status, attemptNumber = null) {
+    // Create status indicator if it doesn't exist
+    let statusElement = document.getElementById('connectionStatus');
+    if (!statusElement) {
+      statusElement = document.createElement('div');
+      statusElement.id = 'connectionStatus';
+      statusElement.className = 'connection-status';
+      document.body.appendChild(statusElement);
+    }
+
+    // Update status
+    statusElement.className = 'connection-status';
+
+    switch(status) {
+      case 'connected':
+        statusElement.classList.add('status-connected');
+        statusElement.textContent = 'Connected';
+        // Hide after 3 seconds
+        setTimeout(() => {
+          statusElement.style.display = 'none';
+        }, 3000);
+        statusElement.style.display = 'block';
+        break;
+
+      case 'disconnected':
+        statusElement.classList.add('status-disconnected');
+        statusElement.textContent = 'Disconnected - Reconnecting...';
+        statusElement.style.display = 'block';
+        break;
+
+      case 'reconnecting':
+        statusElement.classList.add('status-reconnecting');
+        statusElement.textContent = `Reconnecting... (Attempt ${attemptNumber})`;
+        statusElement.style.display = 'block';
+        break;
+
+      case 'failed':
+        statusElement.classList.add('status-failed');
+        statusElement.textContent = 'Connection failed - Please refresh the page';
+        statusElement.style.display = 'block';
+        break;
+    }
+
+    // Add to message log if renderer exists
+    if (this.renderer) {
+      if (status === 'connected') {
+        this.renderer.addLogMessage('Connected to server');
+      } else if (status === 'disconnected') {
+        this.renderer.addLogMessage('Lost connection to server');
+      } else if (status === 'failed') {
+        this.renderer.addLogMessage('Connection failed');
+      }
+    }
   }
 }
 
