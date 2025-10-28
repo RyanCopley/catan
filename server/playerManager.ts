@@ -16,6 +16,7 @@ export function createPlayer(socketId: string, name: string, playerIndex: number
     roads: [],
     victoryPoints: 0,
     longestRoad: false,
+    longestRoadLength: 0,
     largestArmy: false,
     armySize: 0
   };

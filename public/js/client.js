@@ -1530,7 +1530,7 @@ class GameClient {
       roadStat.className = 'scoreboard-stat';
       roadStat.innerHTML = `
         <span class="scoreboard-stat-label">Roads:</span>
-        <span class="scoreboard-stat-value">${player.roads.length}</span>
+        <span class="scoreboard-stat-value">${player.longestRoadLength || 0}</span>
       `;
       statsDiv.appendChild(roadStat);
 

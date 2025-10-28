@@ -197,9 +197,10 @@ export function calculateLongestRoad(players: Player[], board: Board): void {
     longestPlayer = null;
   }
 
-  // Update flags only - victory points will be computed via getVictoryPoints()
+  // Update flags and lengths - victory points will be computed via getVictoryPoints()
   for (const player of players) {
     player.longestRoad = (player === longestPlayer);
+    player.longestRoadLength = findLongestContinuousPath(player, board);
   }
 }
 

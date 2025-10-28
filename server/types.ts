@@ -73,6 +73,7 @@ export interface Player {
   roads: Edge[];
   victoryPoints: number;
   longestRoad: boolean;
+  longestRoadLength: number;
   largestArmy: boolean;
   armySize: number;
   mustDiscard?: number;
