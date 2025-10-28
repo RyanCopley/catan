@@ -132,6 +132,26 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     broadcastOpenGames();
   });
 
+  socket.on('leaveGame', async ({ gameId }: { gameId: string }) => {
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const removed = game.removePlayer(socket.id);
+    if (!removed) return;
+
+    socket.leave(gameId);
+
+    if (game.players.length === 0) {
+      games.delete(gameId);
+      await gameCache.deleteGame(gameId);
+    } else {
+      await saveGameToCache(gameId, game);
+      socket.to(gameId).emit('playerLeft', { game: game.getState() });
+    }
+
+    broadcastOpenGames();
+  });
+
   socket.on('rollDice', async ({ gameId }: { gameId: string }) => {
     const game = games.get(gameId);
     if (!game) return;

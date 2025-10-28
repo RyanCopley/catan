@@ -52,6 +52,23 @@ export class Game {
     this.players.push(player);
   }
 
+  removePlayer(playerId: string): boolean {
+    if (this.phase !== 'waiting') return false;
+
+    const index = this.players.findIndex(p => p.id === playerId);
+    if (index === -1) return false;
+
+    this.players.splice(index, 1);
+
+    if (this.players.length === 0) {
+      this.currentPlayerIndex = 0;
+    } else if (this.currentPlayerIndex >= this.players.length) {
+      this.currentPlayerIndex = 0;
+    }
+
+    return true;
+  }
+
   hasPlayer(socketId: string): boolean {
     return this.players.some(p => p.id === socketId);
   }

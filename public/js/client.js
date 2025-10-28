@@ -125,6 +125,12 @@ class GameClient {
       this.updateLobby();
     });
 
+    this.socket.on('playerLeft', (data) => {
+      if (!this.gameId || data.game.id !== this.gameId) return;
+      this.gameState = data.game;
+      this.updateLobby();
+    });
+
     this.socket.on('playerReconnected', (data) => {
       this.gameState = data.game;
       if (this.gameState.phase === 'waiting' || this.gameState.phase === 'setup') {
@@ -420,6 +426,9 @@ class GameClient {
     });
 
     document.getElementById('leaveLobbyBtn').addEventListener('click', () => {
+      if (this.gameId) {
+        this.socket.emit('leaveGame', { gameId: this.gameId });
+      }
       this.showMenu();
       this.gameId = null;
       this.playerId = null;
