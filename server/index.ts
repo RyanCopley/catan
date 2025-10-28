@@ -74,6 +74,11 @@ gameCache.connect().then(async () => {
 
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
+  socket.on('admin:ping', (ack?: (payload: { serverTime: number }) => void) => {
+    if (typeof ack === 'function') {
+      ack({ serverTime: Date.now() });
+    }
+  });
   setupSocketHandlers(io, socket, games);
 });
 

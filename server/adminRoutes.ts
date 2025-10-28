@@ -5,6 +5,116 @@ import { Game } from './game';
 import { gameCache } from './cache';
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
+
+type NetworkSnapshot = {
+  timestamp: number;
+  rxBytes: number;
+  txBytes: number;
+};
+
+let lastNetworkSnapshot: NetworkSnapshot | null = null;
+
+function readNetworkTotals(): { rxBytes: number; txBytes: number } | null {
+  try {
+    const contents = fs.readFileSync('/proc/net/dev', 'utf8');
+    const lines = contents.trim().split('\n').slice(2);
+
+    let rxBytes = 0;
+    let txBytes = 0;
+    let hasData = false;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) {
+        continue;
+      }
+
+      const [ifaceName, stats] = line.split(':');
+      if (!stats) {
+        continue;
+      }
+
+      const interfaceName = ifaceName.trim();
+      if (!interfaceName || interfaceName === 'lo') {
+        continue;
+      }
+
+      const fields = stats.trim().split(/\s+/);
+      if (fields.length < 16) {
+        continue;
+      }
+
+      const ifaceRx = Number(fields[0]);
+      const ifaceTx = Number(fields[8]);
+
+      if (Number.isFinite(ifaceRx)) {
+        rxBytes += ifaceRx;
+        hasData = true;
+      }
+
+      if (Number.isFinite(ifaceTx)) {
+        txBytes += ifaceTx;
+        hasData = true;
+      }
+    }
+
+    if (!hasData) {
+      return null;
+    }
+
+    return { rxBytes, txBytes };
+  } catch (error) {
+    return null;
+  }
+}
+
+function getNetworkUsageMetrics(): {
+  bytesReceived: number;
+  bytesSent: number;
+  receiveRate: number | null;
+  sendRate: number | null;
+  lastSampledAt: string;
+} | null {
+  const totals = readNetworkTotals();
+  if (!totals) {
+    return null;
+  }
+
+  const now = Date.now();
+  let receiveRate: number | null = null;
+  let sendRate: number | null = null;
+
+  if (lastNetworkSnapshot) {
+    const elapsedSeconds = (now - lastNetworkSnapshot.timestamp) / 1000;
+    if (elapsedSeconds > 0) {
+      const rxDelta = totals.rxBytes - lastNetworkSnapshot.rxBytes;
+      const txDelta = totals.txBytes - lastNetworkSnapshot.txBytes;
+
+      if (rxDelta >= 0) {
+        receiveRate = rxDelta / elapsedSeconds;
+      }
+
+      if (txDelta >= 0) {
+        sendRate = txDelta / elapsedSeconds;
+      }
+    }
+  }
+
+  lastNetworkSnapshot = {
+    timestamp: now,
+    rxBytes: totals.rxBytes,
+    txBytes: totals.txBytes
+  };
+
+  return {
+    bytesReceived: totals.rxBytes,
+    bytesSent: totals.txBytes,
+    receiveRate,
+    sendRate,
+    lastSampledAt: new Date(now).toISOString()
+  };
+}
 
 export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupService?: any) {
   const router = Router();
@@ -159,21 +269,7 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
     const usedSystemMemory = totalSystemMemory - freeSystemMemory;
     const cpus = os.cpus();
     const primaryCpu = cpus[0];
-    const networkInfo = os.networkInterfaces();
-
-    const network = Object.entries(networkInfo)
-      .flatMap(([name, infos]) =>
-        (infos || [])
-          .filter((info) => !info.internal)
-          .map((info) => ({
-            name,
-            address: info.address,
-            family: info.family,
-            mac: info.mac,
-            netmask: info.netmask,
-            cidr: info.cidr ?? null
-          }))
-      );
+    const networkUsage = getNetworkUsageMetrics();
 
     res.json({
       metrics: {
@@ -200,7 +296,7 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
           external: processMemory.external,
           arrayBuffers: processMemory.arrayBuffers
         },
-        network
+        network: networkUsage
       }
     });
   });

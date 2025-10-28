@@ -1,6 +1,9 @@
 let socket;
 let currentEditingGameId = null;
 let metricsInterval = null;
+let latencyInterval = null;
+let latestSocketLatency = null;
+let latestMetrics = null;
 
 // Helper function to format relative time
 function getRelativeTime(timestamp) {
@@ -82,6 +85,139 @@ function formatDuration(seconds) {
   return parts.join(' ');
 }
 
+function formatRate(bytesPerSecond) {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond < 0) {
+    return 'Calculating...';
+  }
+
+  return `${formatBytes(bytesPerSecond)}/s`;
+}
+
+function formatLatencyValue(latency) {
+  if (!Number.isFinite(latency) || latency < 0) {
+    return '—';
+  }
+
+  return `${Math.round(latency)} ms`;
+}
+
+function renderNetworkMetrics() {
+  const container = document.getElementById('networkMetrics');
+  if (!container) {
+    return;
+  }
+
+  const metrics = latestMetrics;
+  const network = metrics?.network ?? null;
+
+  const cards = [];
+
+  if (network) {
+    const receiveRateText = network.receiveRate != null ? formatRate(network.receiveRate) : 'Calculating...';
+    const sendRateText = network.sendRate != null ? formatRate(network.sendRate) : 'Calculating...';
+    const sampledAt = network.lastSampledAt ? new Date(network.lastSampledAt).toLocaleTimeString() : null;
+
+    cards.push(`
+      <div class="metric-card">
+        <div class="metric-title">Network Usage</div>
+        <div class="metric-value">${receiveRateText} ↓</div>
+        <div class="metric-subtext">
+          Upload: ${sendRateText} ↑<br>
+          Total Down: ${formatBytes(network.bytesReceived)} · Total Up: ${formatBytes(network.bytesSent)}${sampledAt ? `<br>Sampled ${sampledAt}` : ''}
+        </div>
+      </div>
+    `);
+  }
+
+  const latencySubtitle = (() => {
+    if (!socket || socket.disconnected) {
+      return 'Socket disconnected';
+    }
+    if (latestSocketLatency == null) {
+      return 'Measuring latency...';
+    }
+    return `Connected as ${socket.id} · Round trip to server`;
+  })();
+
+  cards.push(`
+    <div class="metric-card">
+      <div class="metric-title">WebSocket Latency</div>
+      <div class="metric-value">${formatLatencyValue(latestSocketLatency)}</div>
+      <div class="metric-subtext">${latencySubtitle}</div>
+    </div>
+  `);
+
+  const statusMessage = (() => {
+    if (!metrics) {
+      return '<div class="network-empty">Collecting network metrics...</div>';
+    }
+    if (!network) {
+      return '<div class="network-empty">Network usage metrics unavailable on this system.</div>';
+    }
+    return '';
+  })();
+
+  container.innerHTML = `
+    ${statusMessage}
+    <div class="network-grid">
+      ${cards.join('')}
+    </div>
+  `;
+}
+
+function startLatencyMonitoring() {
+  if (!socket) {
+    return;
+  }
+
+  if (latencyInterval) {
+    clearInterval(latencyInterval);
+  }
+
+  measureSocketLatency();
+  latencyInterval = setInterval(measureSocketLatency, 10000);
+}
+
+function stopLatencyMonitoring() {
+  if (latencyInterval) {
+    clearInterval(latencyInterval);
+    latencyInterval = null;
+  }
+}
+
+function measureSocketLatency() {
+  if (!socket || socket.disconnected) {
+    latestSocketLatency = null;
+    renderNetworkMetrics();
+    return;
+  }
+
+  latestSocketLatency = null;
+  renderNetworkMetrics();
+
+  const start = performance.now();
+  let settled = false;
+
+  const timeoutId = setTimeout(() => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    latestSocketLatency = null;
+    renderNetworkMetrics();
+  }, 5000);
+
+  socket.emit('admin:ping', () => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    clearTimeout(timeoutId);
+    latestSocketLatency = Math.round(performance.now() - start);
+    renderNetworkMetrics();
+  });
+}
+
 function startMetricsPolling() {
   if (metricsInterval) {
     clearInterval(metricsInterval);
@@ -148,12 +284,13 @@ async function fetchSystemMetrics() {
 
 function renderSystemMetrics(metrics) {
   const metricsContainer = document.getElementById('systemMetrics');
-  const networkContainer = document.getElementById('networkMetrics');
   const errorEl = document.getElementById('metricsError');
 
-  if (!metricsContainer || !networkContainer) {
+  if (!metricsContainer) {
     return;
   }
+
+  latestMetrics = metrics;
 
   if (errorEl) {
     errorEl.textContent = '';
@@ -211,23 +348,7 @@ function renderSystemMetrics(metrics) {
     </div>
   `;
 
-  if (metrics?.network && metrics.network.length > 0) {
-    networkContainer.innerHTML = `
-      <h3>Network Interfaces</h3>
-      <ul class="network-list">
-        ${metrics.network.map((iface) => `
-          <li class="network-card">
-            <h4>${iface.name} (${iface.family})</h4>
-            <p><strong>Address:</strong> ${iface.address}</p>
-            <p><strong>MAC:</strong> ${iface.mac}</p>
-            <p><strong>Netmask:</strong> ${iface.netmask}${iface.cidr ? ` / ${iface.cidr}` : ''}</p>
-          </li>
-        `).join('')}
-      </ul>
-    `;
-  } else {
-    networkContainer.innerHTML = '<div class="network-empty">No external network interfaces detected.</div>';
-  }
+  renderNetworkMetrics();
 }
 
 // Check authentication on load
@@ -251,6 +372,14 @@ async function checkAuth() {
 
 function showLoginScreen() {
   stopMetricsPolling();
+  stopLatencyMonitoring();
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+  latestMetrics = null;
+  latestSocketLatency = null;
+  renderNetworkMetrics();
   document.getElementById('loginScreen').style.display = 'block';
   document.getElementById('adminPanel').style.display = 'none';
 }
@@ -259,6 +388,7 @@ function showAdminPanel() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminPanel').style.display = 'block';
   startMetricsPolling();
+  renderNetworkMetrics();
 }
 
 // Login form handler
@@ -298,9 +428,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 async function logout() {
   try {
     await fetch('/admin/logout', { method: 'POST' });
-    if (socket) {
-      socket.disconnect();
-    }
     showLoginScreen();
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
@@ -310,14 +437,23 @@ async function logout() {
 }
 
 function initializeSocket() {
+  if (socket) {
+    socket.disconnect();
+  }
+
   socket = io();
 
   socket.on('connect', () => {
     console.log('Admin socket connected');
+    startLatencyMonitoring();
+    renderNetworkMetrics();
   });
 
   socket.on('disconnect', () => {
     console.log('Admin socket disconnected');
+    stopLatencyMonitoring();
+    latestSocketLatency = null;
+    renderNetworkMetrics();
   });
 }
 
