@@ -5,6 +5,9 @@ class BoardRenderer {
     this.board = null;
     this.baseScale = 80; // Increased from 60 for larger board
     this.scale = 80;
+    this.displayWidth = 0;
+    this.displayHeight = 0;
+    this.pixelRatio = window.devicePixelRatio || 1;
     this.zoom = 1.0;
     this.minZoom = 0.5;
     this.maxZoom = 3.0;
@@ -43,8 +46,18 @@ class BoardRenderer {
 
   resizeCanvas() {
     const container = this.canvas.parentElement;
-    this.canvas.width = container.clientWidth;
-    this.canvas.height = container.clientHeight;
+    this.displayWidth = container.clientWidth;
+    this.displayHeight = container.clientHeight;
+
+    this.pixelRatio = window.devicePixelRatio || 1;
+
+    this.canvas.style.width = `${this.displayWidth}px`;
+    this.canvas.style.height = `${this.displayHeight}px`;
+
+    this.canvas.width = Math.round(this.displayWidth * this.pixelRatio);
+    this.canvas.height = Math.round(this.displayHeight * this.pixelRatio);
+
+    this.ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     this.centerBoard();
     if (this.board) {
       this.render();
@@ -52,8 +65,8 @@ class BoardRenderer {
   }
 
   centerBoard() {
-    this.offsetX = this.canvas.width / 2;
-    this.offsetY = this.canvas.height / 2;
+    this.offsetX = this.displayWidth / 2;
+    this.offsetY = this.displayHeight / 2;
   }
 
   setupEventListeners() {
@@ -299,9 +312,11 @@ class BoardRenderer {
   render() {
     if (!this.board) return;
 
+    this.ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+
     // Clear canvas
     this.ctx.fillStyle = this.colors.water;
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
 
     // Draw hexes
     this.board.hexes.forEach(hex => {
