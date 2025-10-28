@@ -357,13 +357,86 @@ input[type="text"]:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 10px;
+  margin-top: 15px;
 }
 
-.game-info-sidebar #diceResult {
+.dice-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.die {
+  width: 50px;
+  height: 50px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.die-face {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-areas:
+    "a . c"
+    "e g f"
+    "d . b";
+  padding: 8px;
+  gap: 2px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  background: #333;
+  border-radius: 50%;
+  display: none;
+}
+
+/* Die faces - show dots based on value */
+.die[data-value="1"] .dot:nth-child(5) { display: block; grid-area: g; }
+
+.die[data-value="2"] .dot:nth-child(1) { display: block; grid-area: a; }
+.die[data-value="2"] .dot:nth-child(6) { display: block; grid-area: b; }
+
+.die[data-value="3"] .dot:nth-child(1) { display: block; grid-area: a; }
+.die[data-value="3"] .dot:nth-child(5) { display: block; grid-area: g; }
+.die[data-value="3"] .dot:nth-child(6) { display: block; grid-area: b; }
+
+.die[data-value="4"] .dot:nth-child(1) { display: block; grid-area: a; }
+.die[data-value="4"] .dot:nth-child(2) { display: block; grid-area: c; }
+.die[data-value="4"] .dot:nth-child(3) { display: block; grid-area: d; }
+.die[data-value="4"] .dot:nth-child(6) { display: block; grid-area: b; }
+
+.die[data-value="5"] .dot:nth-child(1) { display: block; grid-area: a; }
+.die[data-value="5"] .dot:nth-child(2) { display: block; grid-area: c; }
+.die[data-value="5"] .dot:nth-child(3) { display: block; grid-area: d; }
+.die[data-value="5"] .dot:nth-child(5) { display: block; grid-area: g; }
+.die[data-value="5"] .dot:nth-child(6) { display: block; grid-area: b; }
+
+.die[data-value="6"] .dot:nth-child(1) { display: block; grid-area: a; }
+.die[data-value="6"] .dot:nth-child(2) { display: block; grid-area: c; }
+.die[data-value="6"] .dot:nth-child(3) { display: block; grid-area: d; }
+.die[data-value="6"] .dot:nth-child(4) { display: block; grid-area: e; }
+.die[data-value="6"] .dot:nth-child(5) { display: block; grid-area: f; }
+.die[data-value="6"] .dot:nth-child(6) { display: block; grid-area: b; }
+
+.dice-plus, .dice-equals {
   font-size: 24px;
   font-weight: bold;
   color: #ffd43b;
+}
+
+.dice-total {
+  font-size: 32px;
+  font-weight: bold;
+  color: #ffd43b;
+  min-width: 40px;
   text-align: center;
 }
 

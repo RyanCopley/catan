@@ -145,7 +145,12 @@ class GameClient {
 
       this.gameState = data.game;
       const result = data.diceResult;
-      document.getElementById('diceResult').textContent = `${result.die1} + ${result.die2} = ${result.total}`;
+
+      // Update dice display
+      document.getElementById('die1').setAttribute('data-value', result.die1);
+      document.getElementById('die2').setAttribute('data-value', result.die2);
+      document.getElementById('diceTotal').textContent = result.total;
+
       this.renderer.addLogMessage(`Dice rolled: ${result.total}`);
 
       // Check if we need to discard
@@ -338,7 +343,6 @@ class GameClient {
 
 
       this.renderer.addLogMessage(`${currentPlayer.name}'s turn`);
-      document.getElementById('diceResult').textContent = '';
     });
 
     this.socket.on('playerDisconnected', (data) => {
