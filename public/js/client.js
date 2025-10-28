@@ -51,7 +51,14 @@ class GameClient {
       if (this.gameId && this.playerName) {
         console.log('Reconnecting to game:', this.gameId);
         this.socket.emit('joinGame', { gameId: this.gameId, playerName: this.playerName });
+      } else {
+        // Request open games list if on main menu
+        this.socket.emit('getOpenGames');
       }
+    });
+
+    this.socket.on('openGamesList', (data) => {
+      this.updateOpenGamesList(data.games);
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -1118,10 +1125,63 @@ class GameClient {
     return parts.length > 0 ? parts.join(', ') : 'Nothing';
   }
 
+  updateOpenGamesList(games) {
+    const openGamesList = document.getElementById('openGamesList');
+    openGamesList.innerHTML = '';
+
+    if (!games || games.length === 0) {
+      const noGames = document.createElement('p');
+      noGames.className = 'no-games-text';
+      noGames.textContent = 'No open games available';
+      openGamesList.appendChild(noGames);
+      return;
+    }
+
+    games.forEach(game => {
+      const gameItem = document.createElement('div');
+      gameItem.className = 'open-game-item';
+
+      const gameInfo = document.createElement('div');
+      gameInfo.className = 'open-game-info';
+
+      const gameName = document.createElement('div');
+      gameName.className = 'open-game-name';
+      gameName.textContent = `${game.hostName}'s Game`;
+
+      const gameDetails = document.createElement('div');
+      gameDetails.className = 'open-game-details';
+      gameDetails.textContent = `${game.playerCount}/${game.maxPlayers} players • ID: ${game.gameId}`;
+
+      gameInfo.appendChild(gameName);
+      gameInfo.appendChild(gameDetails);
+
+      const joinButton = document.createElement('button');
+      joinButton.className = 'btn btn-small btn-primary';
+      joinButton.textContent = 'Join';
+      joinButton.onclick = () => this.joinOpenGame(game.gameId);
+
+      gameItem.appendChild(gameInfo);
+      gameItem.appendChild(joinButton);
+      openGamesList.appendChild(gameItem);
+    });
+  }
+
+  joinOpenGame(gameId) {
+    const playerName = document.getElementById('playerName').value.trim();
+    if (!playerName) {
+      alert('Please enter your name first');
+      return;
+    }
+    this.playerName = playerName;
+    this.socket.emit('joinGame', { gameId, playerName });
+  }
+
   showMenu() {
     document.getElementById('menu').classList.add('active');
     document.getElementById('lobby').classList.remove('active');
     document.getElementById('game').classList.remove('active');
+    // Request open games when showing menu
+    this.socket.emit('getOpenGames');
   }
 
   showLobby() {

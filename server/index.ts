@@ -18,9 +18,38 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Store active games
 const games = new Map<string, Game>();
 
-// Initialize Redis cache
-gameCache.connect().then(() => {
+// Initialize Redis cache and load existing games
+gameCache.connect().then(async () => {
   console.log('Game cache initialized');
+
+  // Load all games from cache on startup
+  try {
+    const gameIds = await gameCache.getAllGameIds();
+    console.log(`Found ${gameIds.length} games in cache`);
+
+    for (const gameId of gameIds) {
+      const cachedState = await gameCache.getGame(gameId);
+      if (cachedState) {
+        const game = new Game(gameId);
+        game.players = cachedState.players;
+        game.board = cachedState.board;
+        game.currentPlayerIndex = cachedState.currentPlayerIndex;
+        game.phase = cachedState.phase;
+        game.turnPhase = cachedState.turnPhase;
+        game.diceRoll = cachedState.diceRoll;
+        game.setupRound = cachedState.setupRound;
+        game.setupSettlementPlaced = cachedState.setupSettlementPlaced;
+        game.setupRoadPlaced = cachedState.setupRoadPlaced;
+
+        games.set(gameId, game);
+        console.log(`Loaded game ${gameId} (phase: ${game.phase}, players: ${game.players.length})`);
+      }
+    }
+
+    console.log(`Server ready with ${games.size} active games`);
+  } catch (err) {
+    console.error('Failed to load games from cache:', err);
+  }
 }).catch((err) => {
   console.error('Failed to initialize game cache:', err);
 });

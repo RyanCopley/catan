@@ -28,6 +28,31 @@ async function loadGameFromCache(gameId: string, games: Map<string, Game>): Prom
 }
 
 export function setupSocketHandlers(io: Server, socket: Socket, games: Map<string, Game>): void {
+  // Helper to broadcast open games list
+  const broadcastOpenGames = () => {
+    const openGames = Array.from(games.entries())
+      .filter(([_, game]) => game.phase === 'waiting')
+      .map(([gameId, game]) => ({
+        gameId,
+        hostName: game.players[0]?.name || 'Unknown',
+        playerCount: game.players.length,
+        maxPlayers: 4
+      }));
+    io.emit('openGamesList', { games: openGames });
+  };
+
+  socket.on('getOpenGames', () => {
+    const openGames = Array.from(games.entries())
+      .filter(([_, game]) => game.phase === 'waiting')
+      .map(([gameId, game]) => ({
+        gameId,
+        hostName: game.players[0]?.name || 'Unknown',
+        playerCount: game.players.length,
+        maxPlayers: 4
+      }));
+    socket.emit('openGamesList', { games: openGames });
+  });
+
   socket.on('createGame', async ({ playerName }: { playerName: string }) => {
     const gameId = generateGameId();
     const game = new Game(gameId);
@@ -39,6 +64,9 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     socket.join(gameId);
     socket.emit('gameCreated', { gameId, playerId: socket.id, game: game.getState() });
     console.log(`Game ${gameId} created by ${playerName}`);
+
+    // Broadcast updated open games list
+    broadcastOpenGames();
   });
 
   socket.on('joinGame', async ({ gameId, playerName }: { gameId: string; playerName: string }) => {
@@ -82,6 +110,9 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     io.to(gameId).emit('playerJoined', { game: game.getState() });
     await saveGameToCache(gameId, game);
     console.log(`${playerName} joined game ${gameId}`);
+
+    // Broadcast updated open games list
+    broadcastOpenGames();
   });
 
   socket.on('startGame', async ({ gameId }: { gameId: string }) => {
@@ -91,6 +122,9 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     game.start();
     await saveGameToCache(gameId, game);
     io.to(gameId).emit('gameStarted', { game: game.getState() });
+
+    // Broadcast updated open games list (game no longer open)
+    broadcastOpenGames();
   });
 
   socket.on('rollDice', async ({ gameId }: { gameId: string }) => {
@@ -379,13 +413,18 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('Client disconnected:', socket.id);
+
     games.forEach((game, gameId) => {
       if (game.hasPlayer(socket.id)) {
         io.to(gameId).emit('playerDisconnected', { playerId: socket.id });
+        console.log(`Player ${socket.id} disconnected from game ${gameId} (phase: ${game.phase})`);
       }
     });
+
+    // Note: We no longer delete lobby games on disconnect
+    // Games persist in cache and players can reconnect after deployment
   });
 }
 

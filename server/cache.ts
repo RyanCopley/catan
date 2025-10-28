@@ -43,6 +43,9 @@ class GameCache {
         JSON.stringify(gameState),
         { EX: 86400 } // Expire after 24 hours
       );
+
+      // Add to the set of active game IDs
+      await this.client.sAdd('game:active', gameId);
     } catch (error) {
       console.error(`Failed to save game ${gameId} to cache:`, error);
     }
@@ -72,8 +75,24 @@ class GameCache {
 
     try {
       await this.client.del(`game:${gameId}`);
+      // Remove from the set of active game IDs
+      await this.client.sRem('game:active', gameId);
     } catch (error) {
       console.error(`Failed to delete game ${gameId} from cache:`, error);
+    }
+  }
+
+  async getAllGameIds(): Promise<string[]> {
+    if (!this.connected) {
+      console.warn('Redis not connected, cannot retrieve game IDs');
+      return [];
+    }
+
+    try {
+      return await this.client.sMembers('game:active');
+    } catch (error) {
+      console.error('Failed to retrieve active game IDs:', error);
+      return [];
     }
   }
 

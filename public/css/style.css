@@ -105,6 +105,74 @@ input[type="text"]:focus {
   font-weight: bold;
 }
 
+/* Open Games List */
+.open-games-section {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.open-games-section h3 {
+  color: #667eea;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.open-games-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f9f9f9;
+}
+
+.open-game-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  transition: box-shadow 0.2s;
+}
+
+.open-game-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.open-game-item:last-child {
+  margin-bottom: 0;
+}
+
+.open-game-info {
+  flex: 1;
+}
+
+.open-game-name {
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.open-game-details {
+  font-size: 14px;
+  color: #666;
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.no-games-text, .loading-text {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  padding: 20px;
+}
+
 /* Lobby Screen */
 #lobby {
   justify-content: center;
