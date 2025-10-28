@@ -330,9 +330,12 @@ class BoardRenderer {
                    hex.number === 3 || hex.number === 11 ? 2 : 1;
 
       this.ctx.fillStyle = '#000';
+      const dotSpacing = 5;
+      const totalWidth = (dots - 1) * dotSpacing;
+      const startX = centerX - totalWidth / 2;
       for (let i = 0; i < dots; i++) {
         this.ctx.beginPath();
-        this.ctx.arc(centerX - 10 + i * 5, centerY + 15, 2, 0, Math.PI * 2);
+        this.ctx.arc(startX + i * dotSpacing, centerY + 12, 2, 0, Math.PI * 2);
         this.ctx.fill();
       }
     }
