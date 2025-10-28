@@ -11,6 +11,7 @@ class BoardRenderer {
     this.buildMode = null; // 'settlement', 'road', 'city'
     this.hoveredVertex = null;
     this.hoveredEdge = null;
+    this.currentRoll = null;
 
     this.colors = {
       forest: '#228B22',
@@ -39,6 +40,11 @@ class BoardRenderer {
 
   setBoard(board) {
     this.board = board;
+    this.render();
+  }
+
+  setRoll(roll) {
+    this.currentRoll = roll;
     this.render();
   }
 
@@ -206,6 +212,8 @@ class BoardRenderer {
   render() {
     if (!this.board) return;
 
+    console.log(this);
+
     // Clear canvas
     this.ctx.fillStyle = this.colors.water;
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -291,7 +299,10 @@ class BoardRenderer {
 
     // Draw hexagon (flat-topped, starting from right vertex)
     this.ctx.fillStyle = this.colors[hex.terrain];
-    this.ctx.strokeStyle = '#333';
+
+    console.log(hex.number, this.currentRoll);
+
+    this.ctx.strokeStyle = '#333'; ;
     this.ctx.lineWidth = 2;
 
     this.ctx.beginPath();
@@ -312,6 +323,13 @@ class BoardRenderer {
     // Draw number token
     if (hex.number) {
       this.ctx.fillStyle = '#f0e68c';
+      this.ctx.strokeStyle = '#333';
+
+      if (hex.number && this.currentRoll && hex.number === this.currentRoll) {
+          this.ctx.fillStyle = '#ff8181ff';
+          this.ctx.strokeStyle = '#ff0000';
+      }
+
       this.ctx.beginPath();
       this.ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
       this.ctx.fill();

@@ -99,7 +99,9 @@ class GameClient {
         this.showDiscardModal(myPlayer.mustDiscard, myPlayer.resources);
       }
 
+      this.renderer.setRoll(result.total);
       this.updateGameUI();
+
     });
 
     this.socket.on('cardsDiscarded', (data) => {
@@ -1380,49 +1382,6 @@ class GameClient {
     document.getElementById('bankTradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build');
     document.getElementById('endTurnBtn').disabled = !canEndTurn;
 
-    // Update all players status
-    const playersStatus = document.getElementById('playersStatus');
-    playersStatus.innerHTML = '';
-
-    this.gameState.players.forEach((player, index) => {
-      const div = document.createElement('div');
-      div.className = 'player-status';
-      if (index === this.gameState.currentPlayerIndex) {
-        div.classList.add('current-turn');
-      }
-
-      const header = document.createElement('div');
-      header.className = 'player-status-header';
-
-      const colorDiv = document.createElement('div');
-      colorDiv.className = 'player-color';
-      colorDiv.style.backgroundColor = this.renderer.playerColors[player.color];
-      colorDiv.style.width = '15px';
-      colorDiv.style.height = '15px';
-      colorDiv.style.borderRadius = '50%';
-      colorDiv.style.border = '2px solid #333';
-
-      header.appendChild(colorDiv);
-      header.appendChild(document.createTextNode(player.name));
-
-      const info = document.createElement('div');
-      info.className = 'player-status-info';
-      info.textContent = `VP: ${player.victoryPoints} | Settlements: ${player.settlements.length} | Cities: ${player.cities.length} | Roads: ${player.roads.length}`;
-
-      div.appendChild(header);
-      div.appendChild(info);
-      playersStatus.appendChild(div);
-    });
-
-    // Check for winner
-    if (this.gameState.phase === 'finished') {
-      const winner = this.gameState.players.find(p => p.victoryPoints >= 10);
-      if (winner) {
-        setTimeout(() => {
-          alert(`${winner.name} wins with ${winner.victoryPoints} victory points!`);
-        }, 500);
-      }
-    }
   }
 
   updateDevelopmentCardsDisplay(player) {
