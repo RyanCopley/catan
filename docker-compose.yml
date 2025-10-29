@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-17370}:3000"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/admin/check-auth"]
