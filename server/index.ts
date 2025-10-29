@@ -42,6 +42,10 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+if (IS_PRODUCTION) {
+  app.set('trust proxy', 1);
+}
+
 // Session configuration with security best practices
 app.use(session({
   secret: process.env.SESSION_SECRET,
