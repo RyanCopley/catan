@@ -90,8 +90,12 @@ else
 fi
 
 # Get user input for port (with default)
-read -p "Enter server port [3000]: " PORT
+read -p "Enter inner server port [3000]: " PORT
 PORT=${PORT:-3000}
+
+# Get user input for port (with default)
+read -p "Enter external server port [3000]: " CONTAINER_PORT
+CONTAINER_PORT=${CONTAINER_PORT:-3000}
 
 # Get Redis URL
 read -p "Enter Redis URL [redis://redis:6379]: " REDIS_URL
