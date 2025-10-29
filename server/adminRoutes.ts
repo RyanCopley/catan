@@ -301,6 +301,11 @@ export function recordSocketEvent(eventName: string | symbol): void {
   totalRequestsSinceLastSample += 1;
 }
 
+export function recordSocketBytes(direction: 'inbound' | 'outbound', eventName: string | symbol, bytes: number): void {
+  // This is a stub for now - byte tracking can be expanded in the future
+  // Currently we're just tracking event counts and rates
+}
+
 export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupService?: any) {
   const router = Router();
 
