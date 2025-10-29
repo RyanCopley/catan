@@ -1,0 +1,352 @@
+/* Layout - Screens, Containers, Grid Systems */
+
+/* Screen Management */
+.screen {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+.screen.active {
+  display: flex;
+}
+
+/* Menu Screen */
+#menu {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+}
+
+.menu-title {
+  color: white;
+  font-size: 64px;
+  margin-bottom: 40px;
+  text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.menu-cards {
+  display: flex;
+  gap: 30px;
+  max-width: 1200px;
+  width: 100%;
+  align-items: flex-start;
+}
+
+.menu-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* Open Games List */
+.open-games-section {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.open-games-section h3 {
+  color: #667eea;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.open-games-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f9f9f9;
+}
+
+.open-game-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  transition: box-shadow 0.2s;
+}
+
+.open-game-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.open-game-item:last-child {
+  margin-bottom: 0;
+}
+
+.open-game-info {
+  flex: 1;
+}
+
+.open-game-name {
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.open-game-details {
+  font-size: 14px;
+  color: #666;
+}
+
+/* Game History */
+.game-history-list {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.game-history-list-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-item {
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #51cf66;
+  padding: 12px;
+  transition: box-shadow 0.2s;
+}
+
+.history-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background: #e9ecef;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.history-winner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  color: #333;
+}
+
+.history-time {
+  font-size: 12px;
+  color: #666;
+}
+
+.history-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.history-player {
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.history-duration {
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+}
+
+/* Lobby Screen */
+#lobby {
+  justify-content: center;
+  align-items: center;
+}
+
+.lobby-container {
+  background: white;
+  padding: 40px;
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  min-width: 500px;
+}
+
+.lobby-container h2 {
+  color: #667eea;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.game-id-display {
+  background: #f0f0f0;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.game-id-display span {
+  color: #667eea;
+  font-size: 28px;
+}
+
+.password-section {
+  margin: 20px 0;
+}
+
+.password-section .btn-small {
+  padding: 8px 16px;
+  font-size: 14px;
+  width: 100%;
+  text-align: left;
+}
+
+#passwordToggleIcon {
+  display: inline-block;
+  width: 12px;
+  transition: transform 0.2s;
+}
+
+.password-details {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8f8f8;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.password-info {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.password-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.password-input-group label {
+  font-weight: bold;
+  min-width: 80px;
+}
+
+.password-input-group input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.password-input-group .btn-small {
+  padding: 8px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  width: auto;
+}
+
+.players-list {
+  margin: 20px 0;
+}
+
+.players-list h3 {
+  margin-bottom: 10px;
+}
+
+.players-list ul {
+  list-style: none;
+}
+
+.players-list li {
+  padding: 10px;
+  margin: 5px 0;
+  background: #f0f0f0;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lobby-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.lobby-buttons .btn {
+  flex: 1;
+}
+
+/* Connection Status */
+.connection-status {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 14px;
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  display: none;
+}
+
+.connection-status.status-connected {
+  background-color: #51cf66;
+  color: white;
+  animation: slideInRight 0.3s ease;
+}
+
+.connection-status.status-disconnected {
+  background-color: #ff6b6b;
+  color: white;
+  animation: slideInRight 0.3s ease, pulse 1.5s ease-in-out infinite;
+}
+
+.connection-status.status-reconnecting {
+  background-color: #ffa94d;
+  color: white;
+  animation: slideInRight 0.3s ease, pulse 1.5s ease-in-out infinite;
+}
+
+.connection-status.status-failed {
+  background-color: #c92a2a;
+  color: white;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

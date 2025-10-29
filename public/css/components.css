@@ -1,0 +1,216 @@
+/* Components - Buttons, Cards, Inputs, Badges */
+
+/* Buttons */
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-weight: bold;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+}
+
+.btn-secondary {
+  background: #764ba2;
+  color: white;
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.btn-action {
+  width: 100%;
+  margin-bottom: 10px;
+  background: #51cf66;
+  color: white;
+  font-size: 14px;
+  padding: 10px;
+}
+
+.btn-half {
+  width: 49%;
+}
+
+/* Special Roll Dice Button Animation */
+#rollDiceBtn:not(:disabled) {
+  position: relative;
+  overflow: hidden;
+  contain: paint;
+  color: #222;
+  z-index: 0;
+}
+
+#rollDiceBtn:not(:disabled)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: #ffeb3b;
+  box-shadow: 0 0 10px #fff94d, 0 0 20px #ffd700, 0 0 30px #ffea00;
+  animation: pulseYellow 2s infinite alternate;
+  z-index: -1;
+}
+
+#rollDiceBtn:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: translateX(-150%);
+  animation: shineMove 2s linear infinite;
+  will-change: transform;
+  z-index: 1;
+}
+
+#rollDiceBtn:not(:disabled):hover {
+  transform: scale(1.08);
+}
+
+@keyframes pulseYellow {
+  0% {
+    background-color: #ffeb3b;
+    box-shadow: 0 0 10px #fff94d, 0 0 20px #ffd700;
+  }
+  100% {
+    background-color: #fff44f;
+    box-shadow: 0 0 20px #fff176, 0 0 40px #ffee58;
+  }
+}
+
+@keyframes shineMove {
+  0% {
+    transform: translateX(-150%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+/* Input Fields */
+input[type="text"],
+input[type="number"] {
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+select {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+/* Cards */
+.menu-card {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  flex: 1;
+}
+
+.menu-card h2 {
+  color: #667eea;
+  font-size: 32px;
+  margin-bottom: 20px;
+  text-align: center;
+  border-bottom: 3px solid #667eea;
+  padding-bottom: 10px;
+}
+
+/* Player Color Indicators */
+.player-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #333;
+}
+
+.color-indicator {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid #333;
+  margin: 10px 0;
+}
+
+/* Badges */
+.scoreboard-badge {
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+  background: white;
+  cursor: help;
+}
+
+.scoreboard-badge.longest-road {
+  background: #e3f2ff;
+  border-color: #74c0fc;
+}
+
+.scoreboard-badge.largest-army {
+  background: #ffe3e3;
+  border-color: #ffa8a8;
+}
+
+/* History Color Dots */
+.history-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  flex-shrink: 0;
+}
+
+.history-color-small {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #333;
+  flex-shrink: 0;
+  display: inline-block;
+  margin-right: 4px;
+}

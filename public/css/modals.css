@@ -1,0 +1,241 @@
+/* Modals - All modal and popup styles */
+
+/* Base Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 15px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 2px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  color: #667eea;
+  margin: 0;
+}
+
+.close-modal {
+  font-size: 28px;
+  font-weight: bold;
+  color: #999;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.close-modal:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  padding: 20px;
+  border-top: 2px solid #ddd;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Trade Modal */
+.trade-section {
+  margin-bottom: 25px;
+}
+
+.trade-section h3 {
+  color: #764ba2;
+  margin-bottom: 15px;
+}
+
+.resource-selectors {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 15px;
+}
+
+.resource-selector {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.resource-selector label {
+  font-weight: bold;
+  color: #333;
+}
+
+.resource-selector input[type="number"] {
+  padding: 8px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.resource-selector input[type="number"]:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+/* Trade Offers Panel */
+.trade-offers-panel {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 400px;
+  max-height: 500px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
+  padding: 15px;
+  z-index: 100;
+}
+
+.trade-offers-panel.active {
+  display: block;
+}
+
+.trade-offers-panel h3 {
+  color: #667eea;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 5px;
+}
+
+.trade-offer-item {
+  background: #f0f0f0;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.trade-offer-item.my-offer {
+  border-left-color: #51cf66;
+}
+
+.trade-offer-header {
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.trade-offer-details {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.trade-offer-gives,
+.trade-offer-gets {
+  flex: 1;
+}
+
+.trade-offer-gives h4,
+.trade-offer-gets h4 {
+  font-size: 12px;
+  color: #764ba2;
+  margin-bottom: 5px;
+}
+
+.trade-offer-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.trade-offer-actions button {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.trade-offer-responses {
+  margin: 10px 0;
+  padding: 10px;
+  background: #fff;
+  border-radius: 5px;
+}
+
+.trade-offer-responses h4 {
+  font-size: 12px;
+  color: #764ba2;
+  margin-bottom: 8px;
+}
+
+.response-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.response-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px;
+  background: #f8f9fa;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.response-status {
+  font-weight: bold;
+  font-size: 16px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.response-status.accepted {
+  color: #51cf66;
+}
+
+.response-status.rejected {
+  color: #ff6b6b;
+}
+
+.response-status.pending {
+  color: #adb5bd;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.confirm-buttons button {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+}
