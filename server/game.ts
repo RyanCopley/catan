@@ -11,6 +11,7 @@ import {
   handleRobber, discardCards, checkAllDiscarded, moveRobber,
   stealCard, playKnight, calculateLargestArmy
 } from './robberManager';
+import { censorGameState, censorGameStateForSpectator } from './stateCensor';
 
 export class Game {
   id: string;
@@ -222,6 +223,8 @@ export class Game {
       const success = buildRoad(player, this.board, edge, true, lastSettlement);
       if (success) {
         this.setupRoadPlaced = true;
+        // Calculate longest road even during setup so UI shows correct road count
+        calculateLongestRoad(this.players, this.board);
       }
       return success;
     }
@@ -500,6 +503,11 @@ export class Game {
     }
   }
 
+  /**
+   * Get the full, uncensored game state.
+   * ONLY use this internally for saving to cache or when you need the complete state.
+   * For sending to clients, use getStateForPlayer() or getStateForSpectator() instead.
+   */
   getState(): GameState {
     // Compute victory points for all players before returning state
     const playersWithVP = this.players.map(player => ({
@@ -521,6 +529,29 @@ export class Game {
       tradeOffers: this.tradeManager.getTradeOffers(),
       developmentCardDeck: this.devCardManager.getDeck()
     };
+  }
+
+  /**
+   * Get a censored game state for a specific player.
+   * This hides sensitive information like other players' cards and passwords.
+   *
+   * @param playerId - The socket ID of the player requesting the state
+   * @returns A censored game state safe for this player
+   */
+  getStateForPlayer(playerId: string): GameState {
+    const fullState = this.getState();
+    return censorGameState(fullState, playerId);
+  }
+
+  /**
+   * Get a censored game state for spectators.
+   * This hides all sensitive information.
+   *
+   * @returns A censored game state safe for spectators
+   */
+  getStateForSpectator(): GameState {
+    const fullState = this.getState();
+    return censorGameStateForSpectator(fullState);
   }
 
   updateActivity(): void {

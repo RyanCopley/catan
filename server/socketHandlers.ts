@@ -5,6 +5,47 @@ import { gameCache } from './cache';
 const LOBBY_HEALTHCHECK_INTERVAL_MS = 30000;
 let lobbyHealthCheckInterval: NodeJS.Timeout | null = null;
 
+/**
+ * Broadcasts game state to all players in a game room, with each player
+ * receiving a censored view that hides sensitive information from other players.
+ *
+ * @param io - The Socket.IO server instance
+ * @param gameId - The game ID/room name
+ * @param game - The game instance
+ * @param eventName - The event name to broadcast
+ * @param additionalData - Any additional data to include in the broadcast
+ */
+function broadcastGameState(io: Server, gameId: string, game: Game, eventName: string, additionalData: Record<string, any> = {}): void {
+  // Get all sockets in the game room
+  const room = io.sockets.adapter.rooms.get(gameId);
+  if (!room) return;
+
+  // Send personalized state to each player
+  for (const socketId of room) {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) continue;
+
+    // Check if this socket is a spectator or a player
+    const isSpectator = game.hasSpectator(socketId);
+    const isPlayer = game.hasPlayer(socketId);
+
+    let gameState;
+    if (isSpectator) {
+      gameState = game.getStateForSpectator();
+    } else if (isPlayer) {
+      gameState = game.getStateForPlayer(socketId);
+    } else {
+      // Socket is in room but not recognized - use spectator view for safety
+      gameState = game.getStateForSpectator();
+    }
+
+    socket.emit(eventName, {
+      ...additionalData,
+      game: gameState
+    });
+  }
+}
+
 function generatePassword(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let password = '';
@@ -81,7 +122,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
           console.log(`Removed empty lobby ${gameId}`);
         } else {
           await saveGameToCache(gameId, game);
-          io.to(gameId).emit('playerLeft', { game: game.getState() });
+          broadcastGameState(io, gameId, game, 'playerLeft');
         }
 
         openGamesChanged = true;
@@ -119,7 +160,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     await saveGameToCache(gameId, game);
 
     socket.join(gameId);
-    socket.emit('gameCreated', { gameId, playerId: socket.id, game: game.getState() });
+    socket.emit('gameCreated', { gameId, playerId: socket.id, game: game.getStateForPlayer(socket.id) });
     console.log(`Game ${gameId} created by ${playerName}`);
 
     // Broadcast updated open games list
@@ -146,7 +187,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     game.addSpectator(socket.id);
     socket.join(gameId);
-    socket.emit('spectateJoined', { gameId, game: game.getState() });
+    socket.emit('spectateJoined', { gameId, game: game.getStateForSpectator() });
     console.log(`Spectator ${socket.id} joined game ${gameId}`);
   });
 
@@ -186,8 +227,8 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
         reconnectedPlayer.disconnected = false;
       }
       socket.join(gameId);
-      socket.emit('gameJoined', { gameId, playerId: socket.id, game: game.getState() });
-      io.to(gameId).emit('playerReconnected', { game: game.getState(), playerName });
+      socket.emit('gameJoined', { gameId, playerId: socket.id, game: game.getStateForPlayer(socket.id) });
+      broadcastGameState(io, gameId, game, 'playerReconnected', { playerName });
       await saveGameToCache(gameId, game);
       return;
     }
@@ -199,12 +240,12 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     game.addPlayer(socket.id, playerName, password);
     socket.join(gameId);
-    socket.emit('gameJoined', { gameId, playerId: socket.id, game: game.getState() });
+    socket.emit('gameJoined', { gameId, playerId: socket.id, game: game.getStateForPlayer(socket.id) });
 
     // Unready all players when a new player joins
     game.players.forEach(p => p.ready = false);
 
-    io.to(gameId).emit('playerJoined', { game: game.getState() });
+    broadcastGameState(io, gameId, game, 'playerJoined');
     await saveGameToCache(gameId, game);
     console.log(`${playerName} joined game ${gameId}`);
 
@@ -220,13 +261,13 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (!success) return;
 
     await saveGameToCache(gameId, game);
-    io.to(gameId).emit('playerReadyChanged', { game: game.getState() });
+    broadcastGameState(io, gameId, game, 'playerReadyChanged');
 
     // Check if all players are ready and auto-start the game
     if (game.areAllPlayersReady()) {
       game.start();
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('gameStarted', { game: game.getState() });
+      broadcastGameState(io, gameId, game, 'gameStarted');
 
       // Broadcast updated open games list (game no longer open)
       broadcastOpenGames();
@@ -239,7 +280,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     game.start();
     await saveGameToCache(gameId, game);
-    io.to(gameId).emit('gameStarted', { game: game.getState() });
+    broadcastGameState(io, gameId, game, 'gameStarted');
 
     // Broadcast updated open games list (game no longer open)
     broadcastOpenGames();
@@ -261,7 +302,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
       // Unready all players when someone leaves
       game.players.forEach(p => p.ready = false);
       await saveGameToCache(gameId, game);
-      socket.to(gameId).emit('playerLeft', { game: game.getState() });
+      broadcastGameState(io, gameId, game, 'playerLeft');
     }
 
     broadcastOpenGames();
@@ -274,7 +315,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     const result = game.rollDice(socket.id);
     game.updateActivity();
     await saveGameToCache(gameId, game);
-    io.to(gameId).emit('diceRolled', { game: game.getState(), diceResult: result });
+    broadcastGameState(io, gameId, game, 'diceRolled', { diceResult: result });
   });
 
   socket.on('buildSettlement', async ({ gameId, vertex }: { gameId: string; vertex: any }) => {
@@ -285,7 +326,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (success) {
       game.updateActivity();
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('settlementBuilt', { game: game.getState(), vertex, playerId: socket.id });
+      broadcastGameState(io, gameId, game, 'settlementBuilt', { vertex, playerId: socket.id });
     } else {
       socket.emit('error', { message: 'Cannot build settlement there' });
     }
@@ -299,7 +340,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (success) {
       game.updateActivity();
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('roadBuilt', { game: game.getState(), edge, playerId: socket.id });
+      broadcastGameState(io, gameId, game, 'roadBuilt', { edge, playerId: socket.id });
     } else {
       socket.emit('error', { message: 'Cannot build road there' });
     }
@@ -313,7 +354,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (success) {
       game.updateActivity();
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('cityBuilt', { game: game.getState(), vertex, playerId: socket.id });
+      broadcastGameState(io, gameId, game, 'cityBuilt', { vertex, playerId: socket.id });
     } else {
       socket.emit('error', { message: 'Cannot build city there' });
     }
@@ -335,7 +376,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
 
     await saveGameToCache(gameId, game);
-    io.to(gameId).emit('turnEnded', { game: game.getState() });
+    broadcastGameState(io, gameId, game, 'turnEnded');
   });
 
   socket.on('tradeOffer', async ({ gameId, targetPlayerId, offering, requesting }: { gameId: string; targetPlayerId: string | null; offering: any; requesting: any }) => {
@@ -346,7 +387,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (offer) {
       game.updateActivity();
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('tradeOffered', { game: game.getState(), offer });
+      broadcastGameState(io, gameId, game, 'tradeOffered', { offer });
     } else {
       socket.emit('error', { message: 'Cannot create trade offer - insufficient resources' });
     }
@@ -360,7 +401,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (result.success) {
       game.updateActivity();
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('tradeResponseUpdated', { game: game.getState(), offerId, playerId: socket.id, response });
+      broadcastGameState(io, gameId, game, 'tradeResponseUpdated', { offerId, playerId: socket.id, response });
     } else {
       socket.emit('error', { message: result.error });
     }
@@ -374,8 +415,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (result.success) {
       game.updateActivity();
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('tradeExecuted', {
-        game: game.getState(),
+      broadcastGameState(io, gameId, game, 'tradeExecuted', {
         offeringPlayer: result.offeringPlayer,
         acceptingPlayer: result.acceptingPlayer
       });
@@ -391,7 +431,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     const success = game.cancelTradeOffer(offerId, socket.id);
     if (success) {
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('tradeCancelled', { game: game.getState(), offerId });
+      broadcastGameState(io, gameId, game, 'tradeCancelled', { offerId });
     }
   });
 
@@ -403,8 +443,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (result.success) {
       game.updateActivity();
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('bankTradeExecuted', {
-        game: game.getState(),
+      broadcastGameState(io, gameId, game, 'bankTradeExecuted', {
         playerName: result.playerName,
         gave: result.gave,
         gaveAmount: result.gaveAmount,
@@ -423,7 +462,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     const result = game.discardCards(socket.id, cardsToDiscard);
     if (result.success) {
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('cardsDiscarded', { game: game.getState(), playerId: socket.id });
+      broadcastGameState(io, gameId, game, 'cardsDiscarded', { playerId: socket.id });
     } else {
       socket.emit('error', { message: result.error });
     }
@@ -436,8 +475,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     const result = game.moveRobber(socket.id, hexCoords);
     if (result.success) {
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('robberMoved', {
-        game: game.getState(),
+      broadcastGameState(io, gameId, game, 'robberMoved', {
         hexCoords,
         stealableTargets: result.stealableTargets
       });
@@ -453,8 +491,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     const result = game.stealCard(socket.id, targetPlayerId);
     if (result.success) {
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('cardStolen', {
-        game: game.getState(),
+      broadcastGameState(io, gameId, game, 'cardStolen', {
         robberId: socket.id,
         targetPlayerId,
         stolenResource: result.stolenResource
@@ -473,14 +510,30 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
       game.updateActivity();
       await saveGameToCache(gameId, game);
       const player = game.players.find(p => p.id === socket.id);
+
+      // Send the card type to the buyer only
       socket.emit('developmentCardBought', {
-        game: game.getState(),
+        game: game.getStateForPlayer(socket.id),
         cardType: result.cardType
       });
-      socket.to(gameId).emit('developmentCardBoughtByOther', {
-        game: game.getState(),
-        playerName: player?.name
-      });
+
+      // Send censored state to others
+      const room = io.sockets.adapter.rooms.get(gameId);
+      if (room) {
+        for (const otherSocketId of room) {
+          if (otherSocketId !== socket.id) {
+            const otherSocket = io.sockets.sockets.get(otherSocketId);
+            if (otherSocket) {
+              const isSpectator = game.hasSpectator(otherSocketId);
+              const gameState = isSpectator ? game.getStateForSpectator() : game.getStateForPlayer(otherSocketId);
+              otherSocket.emit('developmentCardBoughtByOther', {
+                game: gameState,
+                playerName: player?.name
+              });
+            }
+          }
+        }
+      }
     } else {
       socket.emit('error', { message: result.error });
     }
@@ -493,8 +546,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     const result = game.playKnight(socket.id, hexCoords);
     if (result.success) {
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('knightPlayed', {
-        game: game.getState(),
+      broadcastGameState(io, gameId, game, 'knightPlayed', {
         playerId: socket.id,
         hexCoords,
         stealableTargets: result.stealableTargets
@@ -512,8 +564,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (result.success) {
       await saveGameToCache(gameId, game);
       const player = game.players.find(p => p.id === socket.id);
-      io.to(gameId).emit('yearOfPlentyPlayed', {
-        game: game.getState(),
+      broadcastGameState(io, gameId, game, 'yearOfPlentyPlayed', {
         playerName: player?.name,
         resource1: result.resource1,
         resource2: result.resource2
@@ -531,8 +582,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (result.success) {
       await saveGameToCache(gameId, game);
       const player = game.players.find(p => p.id === socket.id);
-      io.to(gameId).emit('monopolyPlayed', {
-        game: game.getState(),
+      broadcastGameState(io, gameId, game, 'monopolyPlayed', {
         playerName: player?.name,
         resource: result.resource,
         totalTaken: result.totalTaken
@@ -550,8 +600,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     if (result.success) {
       await saveGameToCache(gameId, game);
       const player = game.players.find(p => p.id === socket.id);
-      io.to(gameId).emit('roadBuildingPlayed', {
-        game: game.getState(),
+      broadcastGameState(io, gameId, game, 'roadBuildingPlayed', {
         playerName: player?.name
       });
     } else {
@@ -566,7 +615,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     const success = game.buildRoadFree(socket.id, edge);
     if (success) {
       await saveGameToCache(gameId, game);
-      io.to(gameId).emit('roadBuiltFree', { game: game.getState(), edge, playerId: socket.id });
+      broadcastGameState(io, gameId, game, 'roadBuiltFree', { edge, playerId: socket.id });
     } else {
       socket.emit('error', { message: 'Cannot build road there' });
     }
@@ -584,7 +633,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
         }
 
         await saveGameToCache(gameId, game);
-        io.to(gameId).emit('playerDisconnected', { playerId: socket.id, game: game.getState() });
+        broadcastGameState(io, gameId, game, 'playerDisconnected', { playerId: socket.id });
         console.log(`Player ${socket.id} disconnected from game ${gameId} (phase: ${game.phase})`);
       } else if (game.hasSpectator(socket.id)) {
         // Remove spectator

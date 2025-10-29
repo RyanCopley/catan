@@ -933,7 +933,10 @@ class GameClient {
       const target = this.gameState.players.find(p => p.id === targetId);
       if (!target) return;
 
-      const targetCard = Object.values(target.resources).reduce((a, b) => a + b, 0);
+      // Use resourceCount for other players (resources are censored)
+      const targetCard = target.id === this.playerId
+        ? Object.values(target.resources).reduce((a, b) => a + b, 0)
+        : (target.resourceCount || 0);
 
       const button = document.createElement('button');
       button.className = 'btn btn-primary';
@@ -1679,9 +1682,17 @@ class GameClient {
       statsDiv.appendChild(armyStat);
 
       // Total cards (resources + dev cards)
-      const totalResourceCards = Object.values(player.resources).reduce((a, b) => a + b, 0);
-      const totalDevCards = (player.developmentCards ? player.developmentCards.length : 0) +
-                            (player.newDevelopmentCards ? player.newDevelopmentCards.length : 0);
+      // For other players, use resourceCount field (resources are censored to -1)
+      const totalResourceCards = player.id === this.playerId
+        ? Object.values(player.resources).reduce((a, b) => a + b, 0)
+        : (player.resourceCount || 0);
+
+      // For other players, use count fields (arrays are censored to empty)
+      const totalDevCards = player.id === this.playerId
+        ? ((player.developmentCards ? player.developmentCards.length : 0) +
+           (player.newDevelopmentCards ? player.newDevelopmentCards.length : 0))
+        : ((player.developmentCardCount || 0) + (player.newDevelopmentCardCount || 0));
+
       const totalCards = totalResourceCards + totalDevCards;
 
       const cardsStat = document.createElement('div');
