@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { Server } from 'socket.io';
-import { validateAdminCredentials, requireAdmin } from './adminAuth';
+import { validateAdminCredentials, requireAdmin, checkRateLimit, recordLoginAttempt } from './adminAuth';
 import { Game } from './game';
 import { gameCache } from './cache';
 import path from 'path';
@@ -315,10 +315,20 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
   router.post('/login', (req: Request, res: Response) => {
     const { username, password } = req.body;
 
+    // Check rate limit
+    const rateLimitCheck = checkRateLimit(req);
+    if (!rateLimitCheck.allowed) {
+      return res.status(429).json({ error: rateLimitCheck.error });
+    }
+
+    // Validate credentials
     if (validateAdminCredentials(username, password)) {
       req.session.isAdmin = true;
+      recordLoginAttempt(req, true);
+      console.log(`Admin login successful from IP: ${req.ip}`);
       res.json({ success: true });
     } else {
+      recordLoginAttempt(req, false);
       res.status(401).json({ error: 'Invalid credentials' });
     }
   });

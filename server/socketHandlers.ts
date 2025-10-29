@@ -1,6 +1,8 @@
 import { Server, Socket } from 'socket.io';
 import { Game } from './game';
 import { gameCache } from './cache';
+import { verifyPassword } from './playerManager';
+import { validateSocketData } from './validation';
 
 const LOBBY_HEALTHCHECK_INTERVAL_MS = 30000;
 let lobbyHealthCheckInterval: NodeJS.Timeout | null = null;
@@ -151,7 +153,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     socket.emit('openGamesList', { games: getOpenGamesSnapshot(games) });
   });
 
-  socket.on('createGame', async ({ playerName, password }: { playerName: string; password: string }) => {
+  socket.on('createGame', async (data: unknown) => {
+    const validation = validateSocketData('createGame', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { playerName, password } = validation.data;
     const gameId = generateGameId();
     const game = new Game(gameId);
     game.addPlayer(socket.id, playerName, password);
@@ -167,7 +176,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     broadcastOpenGames();
   });
 
-  socket.on('spectateGame', async ({ gameId }: { gameId: string }) => {
+  socket.on('spectateGame', async (data: unknown) => {
+    const validation = validateSocketData('spectateGame', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId } = validation.data;
     let game = games.get(gameId);
 
     // If not in memory, try to load from cache
@@ -191,7 +207,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     console.log(`Spectator ${socket.id} joined game ${gameId}`);
   });
 
-  socket.on('joinGame', async ({ gameId, playerName, password }: { gameId: string; playerName: string; password: string }) => {
+  socket.on('joinGame', async (data: unknown) => {
+    const validation = validateSocketData('joinGame', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, playerName, password } = validation.data;
     let game = games.get(gameId);
 
     // If not in memory, try to load from cache
@@ -213,7 +236,7 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
 
     if (existingPlayer) {
       // Validate password for reconnection
-      if (existingPlayer.password !== password) {
+      if (!verifyPassword(password, existingPlayer.password)) {
         socket.emit('error', { message: 'Invalid password for this username. Someone else is using this name, or your password has changed.' });
         return;
       }
@@ -253,7 +276,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     broadcastOpenGames();
   });
 
-  socket.on('toggleReady', async ({ gameId }: { gameId: string }) => {
+  socket.on('toggleReady', async (data: unknown) => {
+    const validation = validateSocketData('toggleReady', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -308,7 +338,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     broadcastOpenGames();
   });
 
-  socket.on('rollDice', async ({ gameId }: { gameId: string }) => {
+  socket.on('rollDice', async (data: unknown) => {
+    const validation = validateSocketData('rollDice', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -318,7 +355,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     broadcastGameState(io, gameId, game, 'diceRolled', { diceResult: result });
   });
 
-  socket.on('buildSettlement', async ({ gameId, vertex }: { gameId: string; vertex: any }) => {
+  socket.on('buildSettlement', async (data: unknown) => {
+    const validation = validateSocketData('buildSettlement', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, vertex } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -332,11 +376,19 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('buildRoad', async ({ gameId, edge }: { gameId: string; edge: any }) => {
+  socket.on('buildRoad', async (data: unknown) => {
+    const validation = validateSocketData('buildRoad', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, edge } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
-    const success = game.buildRoad(socket.id, edge);
+    // Cast to Edge type - buildRoad only uses v1/v2 coordinates to find the board edge
+    const success = game.buildRoad(socket.id, edge as any);
     if (success) {
       game.updateActivity();
       await saveGameToCache(gameId, game);
@@ -379,7 +431,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     broadcastGameState(io, gameId, game, 'turnEnded');
   });
 
-  socket.on('tradeOffer', async ({ gameId, targetPlayerId, offering, requesting }: { gameId: string; targetPlayerId: string | null; offering: any; requesting: any }) => {
+  socket.on('tradeOffer', async (data: unknown) => {
+    const validation = validateSocketData('tradeOffer', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, targetPlayerId, offering, requesting } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -435,7 +494,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('bankTrade', async ({ gameId, givingResource, receivingResource, amount }: { gameId: string; givingResource: any; receivingResource: any; amount?: number }) => {
+  socket.on('bankTrade', async (data: unknown) => {
+    const validation = validateSocketData('bankTrade', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, givingResource, receivingResource, amount } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -468,7 +534,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('moveRobber', async ({ gameId, hexCoords }: { gameId: string; hexCoords: any }) => {
+  socket.on('moveRobber', async (data: unknown) => {
+    const validation = validateSocketData('moveRobber', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, hexCoords } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -608,11 +681,19 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('buildRoadFree', async ({ gameId, edge }: { gameId: string; edge: any }) => {
+  socket.on('buildRoadFree', async (data: unknown) => {
+    const validation = validateSocketData('buildRoadFree', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, edge } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
-    const success = game.buildRoadFree(socket.id, edge);
+    // Cast to Edge type - buildRoadFree only uses v1/v2 coordinates to find the board edge
+    const success = game.buildRoadFree(socket.id, edge as any);
     if (success) {
       await saveGameToCache(gameId, game);
       broadcastGameState(io, gameId, game, 'roadBuiltFree', { edge, playerId: socket.id });

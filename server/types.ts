@@ -82,6 +82,7 @@ export interface Player {
   disconnected?: boolean;
   ready?: boolean;
   spectator?: boolean;
+  stateVersion?: number;
 }
 
 export interface TradeOffer {
@@ -93,6 +94,7 @@ export interface TradeOffer {
   timestamp: number;
   responses: Record<string, TradeResponse>;
   acceptedBy: string[];
+  offeringPlayerStateVersion?: number;
 }
 
 export interface GameHistory {

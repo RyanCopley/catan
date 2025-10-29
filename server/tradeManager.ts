@@ -27,7 +27,8 @@ export class TradeManager {
       requesting,
       timestamp: Date.now(),
       responses: {},
-      acceptedBy: []
+      acceptedBy: [],
+      offeringPlayerStateVersion: offeringPlayer.stateVersion || 0
     };
 
     players.forEach(player => {
@@ -118,6 +119,14 @@ export class TradeManager {
 
     if (!offeringPlayer || !acceptingPlayer) {
       return { success: false, error: 'Player not found' };
+    }
+
+    // Check if offering player's state has changed since offer was created
+    if (offer.offeringPlayerStateVersion !== undefined &&
+        offeringPlayer.stateVersion !== undefined &&
+        offeringPlayer.stateVersion !== offer.offeringPlayerStateVersion) {
+      this.tradeOffers.splice(offerIndex, 1);
+      return { success: false, error: 'Trade invalidated: offering player\'s resources have changed' };
     }
 
     if (!hasResources(offeringPlayer, offer.offering)) {

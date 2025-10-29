@@ -1,3 +1,6 @@
+// MUST be first - loads environment variables
+import './config';
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -8,25 +11,49 @@ import { setupSocketHandlers } from './socketHandlers';
 import { gameCache } from './cache';
 import { createAdminRouter, recordSocketEvent } from './adminRoutes';
 import { GameCleanupService } from './gameCleanup';
-import dotenv from 'dotenv';
 
-// Load environment variables
-dotenv.config();
+// Validate required environment variables
+if (!process.env.SESSION_SECRET) {
+  console.error('FATAL: SESSION_SECRET environment variable is required');
+  console.error('Please set it in your .env file or environment');
+  console.error('Generate a secure random string, e.g.: openssl rand -base64 32');
+  process.exit(1);
+}
+
+if (process.env.SESSION_SECRET.length < 32) {
+  console.error('FATAL: SESSION_SECRET must be at least 32 characters long');
+  process.exit(1);
+}
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
+});
 
 const PORT = process.env.PORT || 3000;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session configuration with security best practices
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'catan-admin-secret-change-in-production',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // Set to true if using HTTPS
+  name: 'catan.sid', // Custom session name (don't use default 'connect.sid')
+  cookie: {
+    secure: IS_PRODUCTION, // HTTPS only in production
+    httpOnly: true, // Prevent XSS attacks
+    sameSite: 'strict', // CSRF protection
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
 }));
 
 // Serve static files

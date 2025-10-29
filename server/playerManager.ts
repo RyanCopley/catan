@@ -1,4 +1,5 @@
 import { Player, PlayerColor, Resources, Coordinate, Edge } from './types';
+import bcrypt from 'bcryptjs';
 
 export function createPlayer(socketId: string, name: string, playerIndex: number, password: string): Player {
   const colors: PlayerColor[] = ['red', 'blue', 'white', 'orange'];
@@ -6,7 +7,7 @@ export function createPlayer(socketId: string, name: string, playerIndex: number
   return {
     id: socketId,
     name: name,
-    password: password,
+    password: bcrypt.hashSync(password, 10),
     color: colors[playerIndex],
     resources: { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 },
     developmentCards: [],
@@ -19,8 +20,13 @@ export function createPlayer(socketId: string, name: string, playerIndex: number
     longestRoad: false,
     longestRoadLength: 0,
     largestArmy: false,
-    armySize: 0
+    armySize: 0,
+    stateVersion: 0
   };
+}
+
+export function verifyPassword(plainPassword: string, hashedPassword: string): boolean {
+  return bcrypt.compareSync(plainPassword, hashedPassword);
 }
 
 export function hasResources(player: Player, required: Partial<Resources>): boolean {
@@ -36,12 +42,18 @@ export function deductResources(player: Player, costs: Partial<Resources>): void
   for (const [resource, amount] of Object.entries(costs)) {
     player.resources[resource as keyof Resources] -= amount;
   }
+  incrementStateVersion(player);
 }
 
 export function addResources(player: Player, resources: Partial<Resources>): void {
   for (const [resource, amount] of Object.entries(resources)) {
     player.resources[resource as keyof Resources] += amount;
   }
+  incrementStateVersion(player);
+}
+
+export function incrementStateVersion(player: Player): void {
+  player.stateVersion = (player.stateVersion || 0) + 1;
 }
 
 export function getTotalResourceCount(player: Player): number {
