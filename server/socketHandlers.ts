@@ -69,28 +69,31 @@ function getOpenGamesSnapshot(games: Map<string, Game>) {
 }
 
 async function saveGameToCache(gameId: string, game: Game): Promise<void> {
-  await gameCache.saveGame(gameId, game);
+  try {
+    await gameCache.saveGame(gameId, game);
+  } catch (error) {
+    console.error(`CRITICAL: Failed to save game ${gameId} to cache:`, error);
+    // Game remains in memory, but warn about cache sync failure
+    // In production, you might want to alert monitoring systems here
+  }
 }
 
 async function loadGameFromCache(gameId: string, games: Map<string, Game>): Promise<Game | null> {
-  const cachedState = await gameCache.getGame(gameId);
-  if (!cachedState) return null;
+  try {
+    const cachedState = await gameCache.getGame(gameId);
+    if (!cachedState) return null;
 
-  // Reconstruct Game instance from cached state
-  const game = new Game(gameId);
-  game.players = cachedState.players;
-  game.board = cachedState.board;
-  game.currentPlayerIndex = cachedState.currentPlayerIndex;
-  game.phase = cachedState.phase;
-  game.turnPhase = cachedState.turnPhase;
-  game.diceRoll = cachedState.diceRoll;
-  game.setupRound = cachedState.setupRound;
-  game.setupSettlementPlaced = cachedState.setupSettlementPlaced;
-  game.setupRoadPlaced = cachedState.setupRoadPlaced;
+    // Reconstruct Game instance from cached state using the safe restoreState method
+    const game = new Game(gameId);
+    game.restoreState(cachedState);
 
-  // Add to in-memory map
-  games.set(gameId, game);
-  return game;
+    // Add to in-memory map
+    games.set(gameId, game);
+    return game;
+  } catch (error) {
+    console.error(`Failed to load game ${gameId} from cache:`, error);
+    return null;
+  }
 }
 
 export function setupSocketHandlers(io: Server, socket: Socket, games: Map<string, Game>): void {
@@ -304,7 +307,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('startGame', async ({ gameId }: { gameId: string }) => {
+  socket.on('startGame', async (data: unknown) => {
+    const validation = validateSocketData('startGame', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -316,7 +326,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     broadcastOpenGames();
   });
 
-  socket.on('leaveGame', async ({ gameId }: { gameId: string }) => {
+  socket.on('leaveGame', async (data: unknown) => {
+    const validation = validateSocketData('leaveGame', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -398,7 +415,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('buildCity', async ({ gameId, vertex }: { gameId: string; vertex: any }) => {
+  socket.on('buildCity', async (data: unknown) => {
+    const validation = validateSocketData('buildCity', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, vertex } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -412,7 +436,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('endTurn', async ({ gameId }: { gameId: string }) => {
+  socket.on('endTurn', async (data: unknown) => {
+    const validation = validateSocketData('endTurn', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -452,7 +483,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('tradeRespond', async ({ gameId, offerId, response }: { gameId: string; offerId: number; response: 'accepted' | 'rejected' }) => {
+  socket.on('tradeRespond', async (data: unknown) => {
+    const validation = validateSocketData('tradeRespond', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, offerId, response } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -466,7 +504,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('tradeConfirm', async ({ gameId, offerId, acceptingPlayerId }: { gameId: string; offerId: number; acceptingPlayerId: string }) => {
+  socket.on('tradeConfirm', async (data: unknown) => {
+    const validation = validateSocketData('tradeConfirm', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, offerId, acceptingPlayerId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -483,7 +528,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('tradeCancel', async ({ gameId, offerId }: { gameId: string; offerId: number }) => {
+  socket.on('tradeCancel', async (data: unknown) => {
+    const validation = validateSocketData('tradeCancel', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, offerId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -521,7 +573,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('discardCards', async ({ gameId, cardsToDiscard }: { gameId: string; cardsToDiscard: any }) => {
+  socket.on('discardCards', async (data: unknown) => {
+    const validation = validateSocketData('discardCards', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, cardsToDiscard } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -557,7 +616,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('stealCard', async ({ gameId, targetPlayerId }: { gameId: string; targetPlayerId: string | null }) => {
+  socket.on('stealCard', async (data: unknown) => {
+    const validation = validateSocketData('stealCard', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, targetPlayerId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -574,7 +640,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('buyDevelopmentCard', async ({ gameId }: { gameId: string }) => {
+  socket.on('buyDevelopmentCard', async (data: unknown) => {
+    const validation = validateSocketData('buyDevelopmentCard', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -612,7 +685,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('playKnight', async ({ gameId, hexCoords }: { gameId: string; hexCoords: any }) => {
+  socket.on('playKnight', async (data: unknown) => {
+    const validation = validateSocketData('playKnight', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, hexCoords } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -629,7 +709,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('playYearOfPlenty', async ({ gameId, resource1, resource2 }: { gameId: string; resource1: any; resource2: any }) => {
+  socket.on('playYearOfPlenty', async (data: unknown) => {
+    const validation = validateSocketData('playYearOfPlenty', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, resource1, resource2 } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -647,7 +734,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('playMonopoly', async ({ gameId, resource }: { gameId: string; resource: any }) => {
+  socket.on('playMonopoly', async (data: unknown) => {
+    const validation = validateSocketData('playMonopoly', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, resource } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 
@@ -665,7 +759,14 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
-  socket.on('playRoadBuilding', async ({ gameId }: { gameId: string }) => {
+  socket.on('playRoadBuilding', async (data: unknown) => {
+    const validation = validateSocketData('playRoadBuilding', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId } = validation.data;
     const game = games.get(gameId);
     if (!game) return;
 

@@ -1,5 +1,6 @@
 import { Board, Player, Vertex, Edge, Coordinate, ResourceType, TerrainType } from './types';
 import { hasResources, deductResources } from './playerManager';
+import { coordinatesEqual, coordinateToKey } from './utils';
 
 export function buildSettlement(
   player: Player,
@@ -8,9 +9,7 @@ export function buildSettlement(
   isSetup: boolean = false,
   setupRound: number = 1
 ): boolean {
-  const v = board.vertices.find(vert =>
-    Math.abs(vert.x - vertex.x) < 0.01 && Math.abs(vert.y - vertex.y) < 0.01
-  );
+  const v = board.vertices.find(vert => coordinatesEqual(vert, vertex));
 
   if (!v || v.building) return false;
 
@@ -68,9 +67,7 @@ export function buildRoad(
   if (isSetup) {
     if (!lastSettlement) return false;
 
-    const isAdjacent =
-      (Math.abs(e.v1.x - lastSettlement.x) < 0.01 && Math.abs(e.v1.y - lastSettlement.y) < 0.01) ||
-      (Math.abs(e.v2.x - lastSettlement.x) < 0.01 && Math.abs(e.v2.y - lastSettlement.y) < 0.01);
+    const isAdjacent = coordinatesEqual(e.v1, lastSettlement) || coordinatesEqual(e.v2, lastSettlement);
 
     if (!isAdjacent) return false;
 
@@ -85,14 +82,13 @@ export function buildRoad(
 
   const isConnected = board.edges.some(existingEdge => {
     if (existingEdge.playerId !== player.id || !existingEdge.road) return false;
-    return (Math.abs(existingEdge.v1.x - e.v1.x) < 0.01 && Math.abs(existingEdge.v1.y - e.v1.y) < 0.01) ||
-           (Math.abs(existingEdge.v1.x - e.v2.x) < 0.01 && Math.abs(existingEdge.v1.y - e.v2.y) < 0.01) ||
-           (Math.abs(existingEdge.v2.x - e.v1.x) < 0.01 && Math.abs(existingEdge.v2.y - e.v1.y) < 0.01) ||
-           (Math.abs(existingEdge.v2.x - e.v2.x) < 0.01 && Math.abs(existingEdge.v2.y - e.v2.y) < 0.01);
+    return coordinatesEqual(existingEdge.v1, e.v1) ||
+           coordinatesEqual(existingEdge.v1, e.v2) ||
+           coordinatesEqual(existingEdge.v2, e.v1) ||
+           coordinatesEqual(existingEdge.v2, e.v2);
   }) || board.vertices.some(v => {
     if (v.playerId !== player.id || !v.building) return false;
-    return (Math.abs(v.x - e.v1.x) < 0.01 && Math.abs(v.y - e.v1.y) < 0.01) ||
-           (Math.abs(v.x - e.v2.x) < 0.01 && Math.abs(v.y - e.v2.y) < 0.01);
+    return coordinatesEqual(v, e.v1) || coordinatesEqual(v, e.v2);
   });
 
   if (!isConnected) return false;
@@ -123,14 +119,13 @@ export function buildRoadFree(player: Player, board: Board, edge: Edge): boolean
 
   const isConnected = board.edges.some(existingEdge => {
     if (existingEdge.playerId !== player.id || !existingEdge.road) return false;
-    return (Math.abs(existingEdge.v1.x - e.v1.x) < 0.01 && Math.abs(existingEdge.v1.y - e.v1.y) < 0.01) ||
-           (Math.abs(existingEdge.v1.x - e.v2.x) < 0.01 && Math.abs(existingEdge.v1.y - e.v2.y) < 0.01) ||
-           (Math.abs(existingEdge.v2.x - e.v1.x) < 0.01 && Math.abs(existingEdge.v2.y - e.v1.y) < 0.01) ||
-           (Math.abs(existingEdge.v2.x - e.v2.x) < 0.01 && Math.abs(existingEdge.v2.y - e.v2.y) < 0.01);
+    return coordinatesEqual(existingEdge.v1, e.v1) ||
+           coordinatesEqual(existingEdge.v1, e.v2) ||
+           coordinatesEqual(existingEdge.v2, e.v1) ||
+           coordinatesEqual(existingEdge.v2, e.v2);
   }) || board.vertices.some(v => {
     if (v.playerId !== player.id || !v.building) return false;
-    return (Math.abs(v.x - e.v1.x) < 0.01 && Math.abs(v.y - e.v1.y) < 0.01) ||
-           (Math.abs(v.x - e.v2.x) < 0.01 && Math.abs(v.y - e.v2.y) < 0.01);
+    return coordinatesEqual(v, e.v1) || coordinatesEqual(v, e.v2);
   });
 
   if (!isConnected) return false;
@@ -144,9 +139,7 @@ export function buildRoadFree(player: Player, board: Board, edge: Edge): boolean
 }
 
 export function buildCity(player: Player, board: Board, vertex: Coordinate): boolean {
-  const v = board.vertices.find(vert =>
-    Math.abs(vert.x - vertex.x) < 0.01 && Math.abs(vert.y - vertex.y) < 0.01
-  );
+  const v = board.vertices.find(vert => coordinatesEqual(vert, vertex));
 
   if (!v || v.building !== 'settlement' || v.playerId !== player.id) return false;
 
@@ -160,9 +153,7 @@ export function buildCity(player: Player, board: Board, vertex: Coordinate): boo
 
   v.building = 'city';
   player.cities.push(vertex);
-  player.settlements = player.settlements.filter(s =>
-    Math.abs(s.x - vertex.x) >= 0.01 || Math.abs(s.y - vertex.y) >= 0.01
-  );
+  player.settlements = player.settlements.filter(s => !coordinatesEqual(s, vertex));
 
   return true;
 }
@@ -211,8 +202,8 @@ function findLongestContinuousPath(player: Player, board: Board): number {
   const roadMap = new Map<string, Coordinate[]>();
 
   player.roads.forEach(road => {
-    const v1Key = `${road.v1.x.toFixed(2)},${road.v1.y.toFixed(2)}`;
-    const v2Key = `${road.v2.x.toFixed(2)},${road.v2.y.toFixed(2)}`;
+    const v1Key = coordinateToKey(road.v1);
+    const v2Key = coordinateToKey(road.v2);
 
     if (!roadMap.has(v1Key)) roadMap.set(v1Key, []);
     if (!roadMap.has(v2Key)) roadMap.set(v2Key, []);
@@ -225,7 +216,7 @@ function findLongestContinuousPath(player: Player, board: Board): number {
   const blockedVertices = new Set<string>();
   board.vertices.forEach(vertex => {
     if (vertex.building && vertex.playerId !== player.id) {
-      const key = `${vertex.x.toFixed(2)},${vertex.y.toFixed(2)}`;
+      const key = coordinateToKey(vertex);
       blockedVertices.add(key);
     }
   });
@@ -252,7 +243,7 @@ function dfsLongestPath(
   let maxPath = 0;
 
   for (const neighbor of neighbors) {
-    const neighborKey = `${neighbor.x.toFixed(2)},${neighbor.y.toFixed(2)}`;
+    const neighborKey = coordinateToKey(neighbor);
     const edgeKey = [currentKey, neighborKey].sort().join('->');
 
     // Skip if this edge was already visited or if neighbor is blocked
@@ -270,15 +261,11 @@ function dfsLongestPath(
 function getAdjacentVertices(vertex: Vertex, board: Board): Vertex[] {
   const adjacent: Vertex[] = [];
   board.edges.forEach(edge => {
-    if (Math.abs(edge.v1.x - vertex.x) < 0.01 && Math.abs(edge.v1.y - vertex.y) < 0.01) {
-      const v = board.vertices.find(v =>
-        Math.abs(v.x - edge.v2.x) < 0.01 && Math.abs(v.y - edge.v2.y) < 0.01
-      );
+    if (coordinatesEqual(edge.v1, vertex)) {
+      const v = board.vertices.find(v => coordinatesEqual(v, edge.v2));
       if (v) adjacent.push(v);
-    } else if (Math.abs(edge.v2.x - vertex.x) < 0.01 && Math.abs(edge.v2.y - vertex.y) < 0.01) {
-      const v = board.vertices.find(v =>
-        Math.abs(v.x - edge.v1.x) < 0.01 && Math.abs(v.y - edge.v1.y) < 0.01
-      );
+    } else if (coordinatesEqual(edge.v2, vertex)) {
+      const v = board.vertices.find(v => coordinatesEqual(v, edge.v1));
       if (v) adjacent.push(v);
     }
   });
@@ -288,8 +275,7 @@ function getAdjacentVertices(vertex: Vertex, board: Board): Vertex[] {
 function isConnectedToPlayerRoad(vertex: Vertex, playerId: string, board: Board): boolean {
   return board.edges.some(edge => {
     if (edge.playerId !== playerId || !edge.road) return false;
-    return (Math.abs(edge.v1.x - vertex.x) < 0.01 && Math.abs(edge.v1.y - vertex.y) < 0.01) ||
-           (Math.abs(edge.v2.x - vertex.x) < 0.01 && Math.abs(edge.v2.y - vertex.y) < 0.01);
+    return coordinatesEqual(edge.v1, vertex) || coordinatesEqual(edge.v2, vertex);
   });
 }
 

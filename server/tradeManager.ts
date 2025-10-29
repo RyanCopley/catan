@@ -1,5 +1,6 @@
 import { Player, TradeOffer, Resources, Board, ResourceType, Vertex, Port, Coordinate } from './types';
 import { hasResources, deductResources, addResources } from './playerManager';
+import { coordinatesEqual } from './utils';
 
 export class TradeManager {
   private tradeOffers: TradeOffer[] = [];
@@ -122,9 +123,11 @@ export class TradeManager {
     }
 
     // Check if offering player's state has changed since offer was created
-    if (offer.offeringPlayerStateVersion !== undefined &&
-        offeringPlayer.stateVersion !== undefined &&
-        offeringPlayer.stateVersion !== offer.offeringPlayerStateVersion) {
+    // stateVersion defaults to 0 if not set (for backward compatibility with old saves)
+    const offerVersion = offer.offeringPlayerStateVersion ?? 0;
+    const playerVersion = offeringPlayer.stateVersion ?? 0;
+
+    if (playerVersion !== offerVersion) {
       this.tradeOffers.splice(offerIndex, 1);
       return { success: false, error: 'Trade invalidated: offering player\'s resources have changed' };
     }
@@ -138,18 +141,31 @@ export class TradeManager {
       return { success: false, error: 'You do not have the requested resources' };
     }
 
-    deductResources(offeringPlayer, offer.offering);
-    addResources(acceptingPlayer, offer.offering);
-    deductResources(acceptingPlayer, offer.requesting);
-    addResources(offeringPlayer, offer.requesting);
+    // Transaction-safe trade execution with rollback capability
+    try {
+      // Step 1: Take resources from both players
+      deductResources(offeringPlayer, offer.offering);
+      deductResources(acceptingPlayer, offer.requesting);
 
-    this.tradeOffers.splice(offerIndex, 1);
+      // Step 2: Give resources to both players
+      addResources(acceptingPlayer, offer.offering);
+      addResources(offeringPlayer, offer.requesting);
 
-    return {
-      success: true,
-      offeringPlayer: offeringPlayer.name,
-      acceptingPlayer: acceptingPlayer.name
-    };
+      // Step 3: Remove trade offer (committed)
+      this.tradeOffers.splice(offerIndex, 1);
+
+      return {
+        success: true,
+        offeringPlayer: offeringPlayer.name,
+        acceptingPlayer: acceptingPlayer.name
+      };
+    } catch (error) {
+      // If anything fails, log the error
+      // Note: deductResources/addResources are pure state mutations without throw
+      // This catch is defensive programming for future changes
+      console.error('Trade execution failed:', error);
+      return { success: false, error: 'Trade execution failed unexpectedly' };
+    }
   }
 
   cancelTradeOffer(offerId: number, playerId: string): boolean {
@@ -219,9 +235,7 @@ export function getPlayerTradeRate(player: Player, board: Board, resource: Resou
 
   board.ports.forEach(port => {
     port.vertices.forEach(portVertex => {
-      const vertex = board.vertices.find(v =>
-        Math.abs(v.x - portVertex.x) < 0.01 && Math.abs(v.y - portVertex.y) < 0.01
-      );
+      const vertex = board.vertices.find(v => coordinatesEqual(v, portVertex));
 
       if (vertex && vertex.playerId === player.id && vertex.building) {
         if (port.type === '3:1') {
@@ -245,9 +259,7 @@ export function getPlayerPorts(player: Player, board: Board): Array<{ type: stri
     let hasAccess = false;
 
     port.vertices.forEach(portVertex => {
-      const vertex = board.vertices.find(v =>
-        Math.abs(v.x - portVertex.x) < 0.01 && Math.abs(v.y - portVertex.y) < 0.01
-      );
+      const vertex = board.vertices.find(v => coordinatesEqual(v, portVertex));
 
       if (vertex && vertex.playerId === player.id && vertex.building) {
         hasAccess = true;

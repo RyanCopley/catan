@@ -574,10 +574,17 @@ export class Game {
       this.tradeManager.restoreTradeOffers(state.tradeOffers);
     }
 
-    // Restore development card deck (backward compatibility: if missing, deck will be empty)
-    if (state.developmentCardDeck) {
+    // Restore development card deck
+    if (state.developmentCardDeck && state.developmentCardDeck.length > 0) {
+      // Deck exists in saved state, restore it
       this.devCardManager.setDeck(state.developmentCardDeck);
+    } else if (this.phase === 'waiting' || (this.phase === 'setup' && state.developmentCardDeck === undefined)) {
+      // Old save from before dev card deck was persisted, or brand new game
+      // Re-initialize the deck
+      console.warn(`Game ${this.id}: Development card deck missing, re-initializing`);
+      this.devCardManager.initialize();
     }
+    // else: deck is intentionally empty (all cards drawn), keep it empty
   }
 
   createGameHistory(): GameHistory | null {

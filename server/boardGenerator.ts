@@ -1,5 +1,5 @@
 import { Board, Hex, Vertex, Edge, Port, HexCoordinate, Coordinate, TerrainType, ResourceType } from './types';
-import { shuffle } from './utils';
+import { shuffle, coordinatesEqual } from './utils';
 
 export function generateBoard(): Board {
   const terrainTypes: TerrainType[] = [
@@ -141,12 +141,8 @@ function generatePorts(hexes: Hex[], vertices: Vertex[]): Port[] {
     const portVertex1 = hexVertices[location.vertices[0]];
     const portVertex2 = hexVertices[location.vertices[1]];
 
-    const vertex1 = vertices.find(v =>
-      Math.abs(v.x - portVertex1.x) < 0.01 && Math.abs(v.y - portVertex1.y) < 0.01
-    );
-    const vertex2 = vertices.find(v =>
-      Math.abs(v.x - portVertex2.x) < 0.01 && Math.abs(v.y - portVertex2.y) < 0.01
-    );
+    const vertex1 = vertices.find(v => coordinatesEqual(v, portVertex1));
+    const vertex2 = vertices.find(v => coordinatesEqual(v, portVertex2));
 
     if (vertex1 && vertex2) {
       ports.push({
