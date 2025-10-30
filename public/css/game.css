@@ -459,6 +459,9 @@
   align-items: center;
   gap: 6px;
   flex: 1;
+  position: relative;
+  overflow: visible;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
 
 .resource-icon {
@@ -470,6 +473,60 @@
   font-weight: bold;
   color: #667eea;
   font-size: 16px;
+}
+
+.resource-change {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -4px) scale(0.85);
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  animation: resourceFloat 2.4s ease-out forwards;
+  pointer-events: none;
+  z-index: 2;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.resource-change.positive {
+  background: linear-gradient(135deg, rgba(81, 207, 102, 0.85), rgba(56, 193, 114, 0.95));
+  box-shadow: 0 0 12px rgba(81, 207, 102, 0.4);
+}
+
+.resource-change.negative {
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.85), rgba(250, 82, 82, 0.95));
+  box-shadow: 0 0 12px rgba(255, 107, 107, 0.4);
+}
+
+.resource.resource-gain {
+  background: rgba(81, 207, 102, 0.12);
+  box-shadow: 0 8px 18px rgba(81, 207, 102, 0.18);
+  transform: translateY(-2px);
+}
+
+.resource.resource-loss {
+  background: rgba(255, 107, 107, 0.1);
+  box-shadow: 0 8px 18px rgba(255, 107, 107, 0.18);
+  transform: translateY(-2px);
+}
+
+@keyframes resourceFloat {
+  0% {
+    transform: translate(-50%, 4px) scale(0.7);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, -10px) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -68px) scale(1.15);
+    opacity: 0;
+  }
 }
 
 /* Development Cards */

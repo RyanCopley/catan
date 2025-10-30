@@ -1,4 +1,46 @@
 // Auto-generated split from client.js
+const RESOURCE_TYPES = ['wood', 'brick', 'sheep', 'wheat', 'ore'];
+
+function animateResourceDelta(resourceId, delta) {
+  if (!delta) return;
+
+  const resourceCountEl = document.getElementById(resourceId);
+  if (!resourceCountEl) return;
+
+  const container = resourceCountEl.parentElement;
+  if (!container) return;
+
+  container.querySelectorAll('.resource-change').forEach(el => el.remove());
+
+  const changeEl = document.createElement('span');
+  changeEl.classList.add('resource-change', delta > 0 ? 'positive' : 'negative');
+  const sign = delta > 0 ? '+' : '';
+  changeEl.textContent = `${sign}${delta}`;
+
+  container.appendChild(changeEl);
+
+  container.classList.remove('resource-gain', 'resource-loss');
+  container.classList.add(delta > 0 ? 'resource-gain' : 'resource-loss');
+
+  const cleanupHighlight = () => {
+    container.classList.remove('resource-gain', 'resource-loss');
+  };
+  setTimeout(cleanupHighlight, 1500);
+
+  changeEl.addEventListener('animationend', () => {
+    changeEl.remove();
+    cleanupHighlight();
+  });
+
+  // Fallback removal in case animation is interrupted or reduced-motion is enabled
+  setTimeout(() => {
+    if (changeEl.isConnected) {
+      changeEl.remove();
+      cleanupHighlight();
+    }
+  }, 2800);
+}
+
 export function updateGameUI() {
   if (!this.gameState) return;
 
@@ -75,15 +117,31 @@ export function updateGameUI() {
 
   // Update player info
   if (myPlayer) {
+    if (!this.lastResourceCounts) {
+      this.lastResourceCounts = { ...myPlayer.resources };
+    } else {
+      for (const resource of RESOURCE_TYPES) {
+        const previous = this.lastResourceCounts[resource] ?? 0;
+        const current = myPlayer.resources[resource] ?? 0;
+        if (current !== previous) {
+          animateResourceDelta(resource, Number(current) - Number(previous));
+        }
+      }
+      this.lastResourceCounts = { ...myPlayer.resources };
+    }
+
     // Update resources
-    document.getElementById('wood').textContent = myPlayer.resources.wood;
-    document.getElementById('brick').textContent = myPlayer.resources.brick;
-    document.getElementById('sheep').textContent = myPlayer.resources.sheep;
-    document.getElementById('wheat').textContent = myPlayer.resources.wheat;
-    document.getElementById('ore').textContent = myPlayer.resources.ore;
+    for (const resource of RESOURCE_TYPES) {
+      const element = document.getElementById(resource);
+      if (element) {
+        element.textContent = myPlayer.resources[resource] ?? 0;
+      }
+    }
 
     // Update development cards display
     this.updateDevelopmentCardsDisplay(myPlayer);
+  } else {
+    this.lastResourceCounts = null;
   }
 
   // Update buttons

@@ -33,6 +33,7 @@ class GameClient {
     this.hasRolledDice = false;
     this.isSpectator = false;
     this.resetAwardTracking();
+    this.lastResourceCounts = null;
 
     this.loadPlayerDataFromStorage();
     this.setupSocketListeners();
