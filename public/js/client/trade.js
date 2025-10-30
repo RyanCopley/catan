@@ -1,4 +1,5 @@
 // Auto-generated split from client.js
+import { showWarningToast } from '../modules/toast.js';
 export function openTradeModal() {
   const modal = document.getElementById('tradeModal');
   modal.classList.add('active');
@@ -146,12 +147,12 @@ export function submitBankTrade() {
   const receivingResource = document.getElementById('bankReceiveResource').value;
 
   if (!givingResource || !receivingResource) {
-    alert('Please select both resources');
+    showWarningToast('Please select both resources');
     return;
   }
 
   if (givingResource === receivingResource) {
-    alert('You must select different resources');
+    showWarningToast('You must select different resources');
     return;
   }
 
@@ -159,7 +160,7 @@ export function submitBankTrade() {
   const tradeRate = this.getBestTradeRate(myPlayer.id, givingResource);
 
   if (!myPlayer || myPlayer.resources[givingResource] < tradeRate) {
-    alert(`You need at least ${tradeRate} ${givingResource} to trade with the bank`);
+    showWarningToast(`You need at least ${tradeRate} ${givingResource} to trade with the bank`);
     return;
   }
 
@@ -230,12 +231,12 @@ export function submitTradeOffer() {
   const requestingTotal = Object.values(requesting).reduce((a, b) => a + b, 0);
 
   if (offeringTotal === 0) {
-    alert('You must offer at least one resource');
+    showWarningToast('You must offer at least one resource');
     return;
   }
 
   if (requestingTotal === 0) {
-    alert('You must request at least one resource');
+    showWarningToast('You must request at least one resource');
     return;
   }
 
@@ -243,7 +244,7 @@ export function submitTradeOffer() {
   const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
   for (const [resource, amount] of Object.entries(offering)) {
     if (myPlayer.resources[resource] < amount) {
-      alert(`You don't have enough ${resource}`);
+      showWarningToast(`You don't have enough ${resource}`);
       return;
     }
   }

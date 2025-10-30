@@ -1,4 +1,5 @@
 // Auto-generated split from client.js
+import { showWarningToast, showConfirmToast } from '../modules/toast.js';
 export function updateDevelopmentCardsDisplay(player) {
   const cardDescriptions = {
     knight: 'Move robber and steal',
@@ -106,13 +107,13 @@ export function playDevelopmentCard(cardType) {
   // Check if it's my turn
   const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
   if (currentPlayer.id !== this.playerId) {
-    alert('Not your turn!');
+    showWarningToast('Not your turn!');
     return;
   }
 
   // Check if in build phase
   if (this.gameState.turnPhase !== 'build') {
-    alert('You can only play development cards during the build phase');
+    showWarningToast('You can only play development cards during the build phase');
     return;
   }
 
@@ -127,9 +128,15 @@ export function playDevelopmentCard(cardType) {
       this.showMonopolyModal();
       break;
     case 'roadBuilding':
-      if (confirm('Play Road Building card? You can build 2 free roads.')) {
-        this.socket.emit('playRoadBuilding', { gameId: this.gameId });
-      }
+      showConfirmToast('Play Road Building card? You can build 2 free roads.', {
+        confirmText: 'Play',
+        cancelText: 'Not Now',
+        type: 'info'
+      }).then(confirmed => {
+        if (confirmed) {
+          this.socket.emit('playRoadBuilding', { gameId: this.gameId });
+        }
+      });
       break;
   }
 }
@@ -166,7 +173,7 @@ export function submitYearOfPlenty() {
   const resource2 = document.getElementById('yearOfPlentyResource2').value;
 
   if (!resource1 || !resource2) {
-    alert('Please select both resources');
+    showWarningToast('Please select both resources');
     return;
   }
 
@@ -191,7 +198,7 @@ export function submitMonopoly() {
   const resource = document.getElementById('monopolyResource').value;
 
   if (!resource) {
-    alert('Please select a resource');
+    showWarningToast('Please select a resource');
     return;
   }
 

@@ -1,4 +1,5 @@
 // Auto-generated split from client.js
+import { showWarningToast } from '../modules/toast.js';
 export function showDiscardModal(mustDiscard, resources) {
   const modal = document.getElementById('discardModal');
   modal.classList.add('active');
@@ -31,7 +32,7 @@ export function submitDiscard() {
   const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
 
   if (totalDiscarded !== myPlayer.mustDiscard) {
-    alert(`You must discard exactly ${myPlayer.mustDiscard} cards`);
+    showWarningToast(`You must discard exactly ${myPlayer.mustDiscard} cards`);
     return;
   }
 

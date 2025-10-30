@@ -1,3 +1,5 @@
+import { showInfoToast, showErrorToast } from './toast.js';
+
 /**
  * SocketManager - Handles all Socket.IO event listeners and network communication
  */
@@ -130,7 +132,7 @@ class SocketManager {
       this.client.uiManager.showLobby();
     }
 
-    alert('You are spectating this game');
+    showInfoToast('You are spectating this game');
   }
 
   onGameJoined(data) {
@@ -474,7 +476,7 @@ class SocketManager {
 
   // Error handler
   onError(data) {
-    alert(data.message);
+    showErrorToast(data.message || 'An unexpected error occurred');
     this.client.renderer.clearBuildMode();
   }
 }

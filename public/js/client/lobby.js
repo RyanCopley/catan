@@ -1,4 +1,5 @@
 // Auto-generated split from client.js
+import { showWarningToast } from '../modules/toast.js';
 export function updateLobby() {
   document.getElementById('lobbyGameId').textContent = this.gameId;
 
@@ -89,7 +90,7 @@ export function updateOpenGamesList(games) {
 export function joinOpenGame(gameId) {
   const playerName = document.getElementById('playerName').value.trim();
   if (!playerName) {
-    alert('Please enter your name first');
+    showWarningToast('Please enter your name first');
     return;
   }
   this.playerName = playerName;

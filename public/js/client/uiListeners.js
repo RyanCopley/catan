@@ -1,10 +1,11 @@
 // Auto-generated split from client.js
+import { showWarningToast, showConfirmToast } from '../modules/toast.js';
 export function setupUIListeners() {
   // Menu screen
   document.getElementById('createGameBtn').addEventListener('click', () => {
     const playerName = document.getElementById('playerName').value.trim();
     if (!playerName) {
-      alert('Please enter your name');
+      showWarningToast('Please enter your name');
       return;
     }
     this.playerName = playerName;
@@ -28,11 +29,20 @@ export function setupUIListeners() {
 
   // Regenerate password button
   document.getElementById('regeneratePassword').addEventListener('click', () => {
-    if (confirm('Are you sure you want to regenerate your password? This will prevent reconnection to existing games with your current username.')) {
-      this.playerPassword = this.generatePassword();
-      this.savePlayerDataToStorage();
-      document.getElementById('sessionPassword').value = this.playerPassword;
-    }
+    showConfirmToast(
+      'Are you sure you want to regenerate your password? This will prevent reconnection to existing games with your current username.',
+      {
+        confirmText: 'Regenerate',
+        cancelText: 'Cancel',
+        type: 'warning'
+      }
+    ).then(confirmed => {
+      if (confirmed) {
+        this.playerPassword = this.generatePassword();
+        this.savePlayerDataToStorage();
+        document.getElementById('sessionPassword').value = this.playerPassword;
+      }
+    });
   });
 
   // Lobby screen

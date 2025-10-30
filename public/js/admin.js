@@ -1,3 +1,5 @@
+import { showSuccessToast, showErrorToast, showConfirmToast } from './modules/toast.js';
+
 let socket;
 let currentEditingGameId = null;
 let metricsInterval = null;
@@ -1350,7 +1352,16 @@ function spectateGame(gameId) {
 }
 
 async function deleteGame(gameId) {
-  if (!confirm(`Are you sure you want to delete game ${gameId}?`)) {
+  const confirmed = await showConfirmToast(
+    `Delete game ${gameId}? This cannot be undone.`,
+    {
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'warning'
+    }
+  );
+
+  if (!confirmed) {
     return;
   }
 
@@ -1364,12 +1375,13 @@ async function deleteGame(gameId) {
     if (response.ok && data.success) {
       // Server handles notifying game clients
       refreshGames();
+      showSuccessToast(`Game ${gameId} deleted`);
     } else {
-      alert('Failed to delete game: ' + (data.error || 'Unknown error'));
+      showErrorToast('Failed to delete game: ' + (data.error || 'Unknown error'));
     }
   } catch (error) {
     console.error('Error deleting game:', error);
-    alert('Network error while deleting game');
+    showErrorToast('Network error while deleting game');
   }
 }
 
@@ -1379,7 +1391,7 @@ async function editGameState(gameId) {
     const data = await response.json();
 
     if (!response.ok) {
-      alert('Failed to load game state: ' + (data.error || 'Unknown error'));
+      showErrorToast('Failed to load game state: ' + (data.error || 'Unknown error'));
       return;
     }
 
@@ -1389,7 +1401,7 @@ async function editGameState(gameId) {
     document.getElementById('editModal').style.display = 'block';
   } catch (error) {
     console.error('Error loading game state:', error);
-    alert('Network error while loading game state');
+    showErrorToast('Network error while loading game state');
   }
 }
 
@@ -1428,7 +1440,7 @@ async function saveGameState() {
       // Server handles resyncing game clients
       closeEditModal();
       refreshGames();
-      alert('Game state updated and clients resynced!');
+      showSuccessToast('Game state updated and clients resynced!');
     } else {
       editorError.textContent = 'Failed to save: ' + (data.error || 'Unknown error');
     }
@@ -1444,6 +1456,14 @@ document.getElementById('editModal').addEventListener('click', (e) => {
     closeEditModal();
   }
 });
+
+window.refreshGames = refreshGames;
+window.logout = logout;
+window.closeEditModal = closeEditModal;
+window.saveGameState = saveGameState;
+window.spectateGame = spectateGame;
+window.editGameState = editGameState;
+window.deleteGame = deleteGame;
 
 // Initialize on load
 window.addEventListener('resize', scheduleMetricsHistoryRedraw);

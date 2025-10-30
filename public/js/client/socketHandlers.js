@@ -1,4 +1,5 @@
 // Auto-generated split from client.js
+import { showInfoToast, showErrorToast } from '../modules/toast.js';
 export function setupSocketListeners() {
   this.socket.on('connect', () => {
     console.log('Connected to server');
@@ -75,7 +76,7 @@ export function setupSocketListeners() {
       this.showLobby();
     }
 
-    this.showMessage('You are spectating this game', 'info');
+    showInfoToast('You are spectating this game');
   });
 
   this.socket.on('gameJoined', (data) => {
@@ -418,7 +419,7 @@ export function setupSocketListeners() {
   });
 
   this.socket.on('error', (data) => {
-    alert(data.message);
+    showErrorToast(data.message || 'An unexpected error occurred');
     this.renderer.clearBuildMode();
   });
 }

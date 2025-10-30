@@ -214,3 +214,123 @@ select:focus {
   display: inline-block;
   margin-right: 4px;
 }
+
+.toast-container {
+  position: fixed;
+  top: 1.5rem;
+  left: 1.5rem;
+  right: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  z-index: 2000;
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+  min-width: 260px;
+  max-width: 360px;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  color: #fff;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-16px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  background: rgba(33, 33, 33, 0.92);
+  border-left: 4px solid rgba(255, 255, 255, 0.4);
+}
+
+.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-hiding {
+  opacity: 0 !important;
+  transform: translateY(-10px) !important;
+}
+
+.toast-message {
+  font-weight: 500;
+}
+
+.toast-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.2s ease;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+.toast-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.toast-action {
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  background: rgba(255, 255, 255, 0.15);
+  color: inherit;
+}
+
+.toast-action:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.toast-action:active {
+  transform: translateY(0);
+}
+
+.toast-action-confirm {
+  background: rgba(76, 175, 80, 0.25);
+}
+
+.toast-action-cancel {
+  background: rgba(244, 67, 54, 0.25);
+}
+
+.toast-success {
+  background: rgba(46, 125, 50, 0.9);
+  border-left-color: #81c784;
+}
+
+.toast-error {
+  background: rgba(198, 40, 40, 0.9);
+  border-left-color: #ef9a9a;
+}
+
+.toast-warning {
+  background: rgba(255, 160, 0, 0.9);
+  border-left-color: #ffe082;
+  color: #2d2411;
+}
+
+.toast-info {
+  background: rgba(25, 118, 210, 0.9);
+  border-left-color: #90caf9;
+}
