@@ -290,7 +290,16 @@ export class Game {
       return { success: false, error: 'Waiting for players to discard' };
     }
 
-    return moveRobber(this.board, hexCoords);
+    const result = moveRobber(this.board, hexCoords);
+    if (!result.success) {
+      return result;
+    }
+
+    const filteredTargets = (result.stealableTargets || []).filter(id => id !== playerId);
+    return {
+      ...result,
+      stealableTargets: filteredTargets
+    };
   }
 
   stealCard(robberId: string, targetPlayerId: string | null): { success: boolean; error?: string; stolenResource?: ResourceType | null } {

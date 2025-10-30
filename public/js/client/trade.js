@@ -181,7 +181,9 @@ export function showStealModal(stealableTargets) {
   const targetsDiv = document.getElementById('stealTargets');
   targetsDiv.innerHTML = '';
 
-  stealableTargets.forEach(targetId => {
+  const eligibleTargets = stealableTargets.filter(targetId => targetId !== this.playerId);
+
+  eligibleTargets.forEach(targetId => {
     const target = this.gameState.players.find(p => p.id === targetId);
     if (!target) return;
 
