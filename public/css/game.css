@@ -480,12 +480,28 @@
 
 .cost-legend-cost {
   color: #343a40;
+  display: flex;
+  gap: 6px;
+  justify-self: start;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cost-legend-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .cost-legend-vp {
   font-weight: 600;
   color: #f08c00;
   text-align: right;
+}
+
+.cost-legend-vp-empty {
+  visibility: hidden;
 }
 
 .cost-legend.collapsed .cost-legend-content {
