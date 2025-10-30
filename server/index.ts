@@ -9,7 +9,8 @@ import session from 'express-session';
 import { Game } from './game';
 import { setupSocketHandlers } from './socketHandlers';
 import { gameCache } from './cache';
-import { createAdminRouter, recordSocketEvent } from './adminRoutes';
+import { createAdminRouter } from './adminRoutes';
+import { attachSocketMetrics } from './socketMetrics';
 import { GameCleanupService } from './gameCleanup';
 
 // Validate required environment variables
@@ -105,9 +106,7 @@ gameCache.connect().then(async () => {
 
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
-  socket.onAny((eventName) => {
-    recordSocketEvent(eventName);
-  });
+  attachSocketMetrics(socket);
   socket.on('admin:ping', (ack?: (payload: { serverTime: number }) => void) => {
     if (typeof ack === 'function') {
       ack({ serverTime: Date.now() });

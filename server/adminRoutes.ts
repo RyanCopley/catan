@@ -40,6 +40,16 @@ type RequestUsageMetrics = {
   lastSampledAt: string;
 };
 
+type SocketTrafficMetrics = {
+  inboundRate: number | null;
+  outboundRate: number | null;
+  totalInboundBytes: number;
+  totalOutboundBytes: number;
+  perEventInboundRates: Record<string, number>;
+  perEventOutboundRates: Record<string, number>;
+  lastSampledAt: string;
+};
+
 type MetricHistorySample = {
   timestamp: number;
   cpuUsagePercent: number | null;
@@ -51,6 +61,8 @@ type MetricHistorySample = {
   networkSendRateBytes: number | null;
   socketRequestTotalRate: number | null;
   socketRequestRatesByEvent: Record<string, number> | null;
+  socketInboundRateBytes: number | null;
+  socketOutboundRateBytes: number | null;
 };
 
 const METRIC_HISTORY_LIMIT = 3600; // one hour at 1s resolution
@@ -67,6 +79,14 @@ const requestCounters: Map<string, number> = new Map();
 let totalRequestsSinceLastSample = 0;
 let lastRequestSampleTimestamp: number | null = null;
 const requestEventSeenAt: Map<string, number> = new Map();
+let totalInboundSocketBytes = 0;
+let totalOutboundSocketBytes = 0;
+let inboundSocketBytesSinceSample = 0;
+let outboundSocketBytesSinceSample = 0;
+let lastSocketByteSampleTimestamp: number | null = null;
+let latestSocketTraffic: SocketTrafficMetrics | null = null;
+const socketByteEventSinceSample: Map<string, { inbound: number; outbound: number }> = new Map();
+const socketByteEventSeenAt: Map<string, number> = new Map();
 
 function cloneCpuTimes(cpus: os.CpuInfo[]): CpuTimes[] {
   return cpus.map(cpu => ({ ...cpu.times }));
@@ -223,9 +243,19 @@ function recordMetricSample() {
       requestCounters.delete(eventName);
     }
   }
+  for (const [eventName, lastSeen] of socketByteEventSeenAt.entries()) {
+    if (lastSeen < staleEventCutoff) {
+      socketByteEventSeenAt.delete(eventName);
+      socketByteEventSinceSample.delete(eventName);
+    }
+  }
 
   let requestRatesByEvent: Record<string, number> | null = null;
   let requestTotalRate: number | null = null;
+  let socketInboundRate: number | null = null;
+  let socketOutboundRate: number | null = null;
+  const socketInboundRatesByEvent: Record<string, number> = {};
+  const socketOutboundRatesByEvent: Record<string, number> = {};
 
   if (lastRequestSampleTimestamp !== null) {
     const elapsedSeconds = (now - lastRequestSampleTimestamp) / 1000;
@@ -245,9 +275,40 @@ function recordMetricSample() {
     };
   }
 
+  if (lastSocketByteSampleTimestamp !== null) {
+    const elapsedSeconds = (now - lastSocketByteSampleTimestamp) / 1000;
+    const safeElapsed = elapsedSeconds > 0 ? elapsedSeconds : 1;
+
+    socketInboundRate = inboundSocketBytesSinceSample / safeElapsed;
+    socketOutboundRate = outboundSocketBytesSinceSample / safeElapsed;
+
+    for (const [eventName, totals] of socketByteEventSinceSample.entries()) {
+      if (totals.inbound > 0) {
+        socketInboundRatesByEvent[eventName] = totals.inbound / safeElapsed;
+      }
+      if (totals.outbound > 0) {
+        socketOutboundRatesByEvent[eventName] = totals.outbound / safeElapsed;
+      }
+    }
+  }
+
+  latestSocketTraffic = {
+    inboundRate: socketInboundRate,
+    outboundRate: socketOutboundRate,
+    totalInboundBytes: totalInboundSocketBytes,
+    totalOutboundBytes: totalOutboundSocketBytes,
+    perEventInboundRates: socketInboundRatesByEvent,
+    perEventOutboundRates: socketOutboundRatesByEvent,
+    lastSampledAt: new Date(now).toISOString()
+  };
+
   lastRequestSampleTimestamp = now;
   requestCounters.clear();
   totalRequestsSinceLastSample = 0;
+  lastSocketByteSampleTimestamp = now;
+  inboundSocketBytesSinceSample = 0;
+  outboundSocketBytesSinceSample = 0;
+  socketByteEventSinceSample.clear();
 
   metricHistory.push({
     timestamp: now,
@@ -259,7 +320,9 @@ function recordMetricSample() {
     networkReceiveRateBytes: receiveRate,
     networkSendRateBytes: sendRate,
     socketRequestTotalRate: requestTotalRate,
-    socketRequestRatesByEvent: requestRatesByEvent ? { ...requestRatesByEvent } : null
+    socketRequestRatesByEvent: requestRatesByEvent ? { ...requestRatesByEvent } : null,
+    socketInboundRateBytes: socketInboundRate,
+    socketOutboundRateBytes: socketOutboundRate
   });
 
   if (metricHistory.length > METRIC_HISTORY_LIMIT) {
@@ -291,6 +354,22 @@ function getRequestUsageMetrics(): RequestUsageMetrics | null {
     : null;
 }
 
+function getSocketTrafficMetrics(): SocketTrafficMetrics | null {
+  if (!latestSocketTraffic) {
+    return null;
+  }
+
+  return {
+    inboundRate: latestSocketTraffic.inboundRate,
+    outboundRate: latestSocketTraffic.outboundRate,
+    totalInboundBytes: latestSocketTraffic.totalInboundBytes,
+    totalOutboundBytes: latestSocketTraffic.totalOutboundBytes,
+    perEventInboundRates: { ...latestSocketTraffic.perEventInboundRates },
+    perEventOutboundRates: { ...latestSocketTraffic.perEventOutboundRates },
+    lastSampledAt: latestSocketTraffic.lastSampledAt
+  };
+}
+
 export function recordSocketEvent(eventName: string | symbol): void {
   if (typeof eventName !== 'string') {
     return;
@@ -302,8 +381,43 @@ export function recordSocketEvent(eventName: string | symbol): void {
 }
 
 export function recordSocketBytes(direction: 'inbound' | 'outbound', eventName: string | symbol, bytes: number): void {
-  // This is a stub for now - byte tracking can be expanded in the future
-  // Currently we're just tracking event counts and rates
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return;
+  }
+
+  const byteCount = Math.max(0, Math.round(bytes));
+  if (byteCount <= 0) {
+    return;
+  }
+
+  if (direction === 'inbound') {
+    totalInboundSocketBytes += byteCount;
+    inboundSocketBytesSinceSample += byteCount;
+  } else {
+    totalOutboundSocketBytes += byteCount;
+    outboundSocketBytesSinceSample += byteCount;
+  }
+
+  if (typeof eventName !== 'string' || !eventName) {
+    return;
+  }
+
+  const now = Date.now();
+  socketByteEventSeenAt.set(eventName, now);
+
+  const sampleEntry = socketByteEventSinceSample.get(eventName);
+  if (sampleEntry) {
+    if (direction === 'inbound') {
+      sampleEntry.inbound += byteCount;
+    } else {
+      sampleEntry.outbound += byteCount;
+    }
+  } else {
+    socketByteEventSinceSample.set(eventName, {
+      inbound: direction === 'inbound' ? byteCount : 0,
+      outbound: direction === 'outbound' ? byteCount : 0
+    });
+  }
 }
 
 export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupService?: any) {
@@ -473,6 +587,7 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
     const primaryCpu = cpus[0];
     const networkUsage = getNetworkUsageMetrics();
     const requestUsage = getRequestUsageMetrics();
+    const socketUsage = getSocketTrafficMetrics();
 
     res.json({
       metrics: {
@@ -500,7 +615,8 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
           arrayBuffers: processMemory.arrayBuffers
         },
         network: networkUsage,
-        requests: requestUsage
+        requests: requestUsage,
+        socketTraffic: socketUsage
       },
       history: {
         intervalSeconds: METRIC_SAMPLE_INTERVAL_MS / 1000,
@@ -515,7 +631,9 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
           networkReceiveRateBytes: sample.networkReceiveRateBytes,
           networkSendRateBytes: sample.networkSendRateBytes,
           socketRequestTotalRate: sample.socketRequestTotalRate,
-          socketRequestRatesByEvent: sample.socketRequestRatesByEvent ? { ...sample.socketRequestRatesByEvent } : null
+          socketRequestRatesByEvent: sample.socketRequestRatesByEvent ? { ...sample.socketRequestRatesByEvent } : null,
+          socketInboundRateBytes: sample.socketInboundRateBytes,
+          socketOutboundRateBytes: sample.socketOutboundRateBytes
         }))
       }
     });

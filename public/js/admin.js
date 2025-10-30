@@ -9,6 +9,10 @@ let metricsHistoryResizeTimeout = null;
 
 const REQUEST_EVENT_COLORS = ['#f4511e', '#00838f', '#7cb342', '#8e24aa', '#ffb300', '#6d4c41'];
 const TOTAL_REQUEST_COLOR = '#3949ab';
+const SOCKET_TRAFFIC_COLORS = {
+  inbound: '#26a69a',
+  outbound: '#d81b60'
+};
 
 // Helper function to format relative time
 function getRelativeTime(timestamp) {
@@ -455,6 +459,69 @@ function drawNetworkChart(history) {
   return true;
 }
 
+function drawSocketTrafficChart(history) {
+  const canvas = document.getElementById('socketTrafficChart');
+  const legendEl = document.getElementById('socketTrafficLegend');
+  if (!canvas || !legendEl) {
+    return false;
+  }
+
+  const samples = history.samples || [];
+  if (!samples.length) {
+    legendEl.innerHTML = '';
+    return false;
+  }
+
+  const timestamps = samples.map(sample => sample.timestamp);
+  const inboundValues = samples.map(sample => {
+    if (!Number.isFinite(sample.socketInboundRateBytes)) {
+      return null;
+    }
+    return Number(sample.socketInboundRateBytes);
+  });
+  const outboundValues = samples.map(sample => {
+    if (!Number.isFinite(sample.socketOutboundRateBytes)) {
+      return null;
+    }
+    return Number(sample.socketOutboundRateBytes);
+  });
+
+  const rendered = drawLineChart(
+    canvas,
+    timestamps,
+    [
+      { label: 'Inbound', color: SOCKET_TRAFFIC_COLORS.inbound, values: inboundValues },
+      { label: 'Outbound', color: SOCKET_TRAFFIC_COLORS.outbound, values: outboundValues }
+    ],
+    {
+      minValue: 0,
+      valueFormatter: value => formatRate(value)
+    }
+  );
+
+  if (!rendered) {
+    legendEl.innerHTML = '';
+    return false;
+  }
+
+  legendEl.innerHTML = renderLegendHtml([
+    {
+      label: 'Inbound',
+      color: SOCKET_TRAFFIC_COLORS.inbound,
+      value: getLatestValue(inboundValues),
+      formatter: value => formatRate(value)
+    },
+    {
+      label: 'Outbound',
+      color: SOCKET_TRAFFIC_COLORS.outbound,
+      value: getLatestValue(outboundValues),
+      formatter: value => formatRate(value)
+    }
+  ]);
+
+  return true;
+}
+
 function drawRequestsChart(history) {
   const canvas = document.getElementById('requestsChart');
   const legendEl = document.getElementById('requestsLegend');
@@ -598,6 +665,8 @@ function renderMetricsHistory(history) {
   const utilizationEmpty = document.getElementById('utilizationChartEmpty');
   const networkCanvas = document.getElementById('networkChart');
   const networkEmpty = document.getElementById('networkChartEmpty');
+  const socketTrafficCanvas = document.getElementById('socketTrafficChart');
+  const socketTrafficEmpty = document.getElementById('socketTrafficChartEmpty');
   const requestsCanvas = document.getElementById('requestsChart');
   const requestsEmpty = document.getElementById('requestsChartEmpty');
 
@@ -618,6 +687,13 @@ function renderMetricsHistory(history) {
     if (networkEmpty) {
       networkEmpty.style.display = 'flex';
     }
+    if (socketTrafficCanvas) {
+      socketTrafficCanvas.style.display = 'none';
+    }
+    if (socketTrafficEmpty) {
+      socketTrafficEmpty.style.display = 'flex';
+      socketTrafficEmpty.textContent = 'Collecting socket traffic history...';
+    }
     if (requestsCanvas) {
       requestsCanvas.style.display = 'none';
     }
@@ -626,12 +702,16 @@ function renderMetricsHistory(history) {
     }
     const utilizationLegend = document.getElementById('utilizationLegend');
     const networkLegend = document.getElementById('networkLegend');
+    const socketTrafficLegend = document.getElementById('socketTrafficLegend');
     const requestsLegend = document.getElementById('requestsLegend');
     if (utilizationLegend) {
       utilizationLegend.innerHTML = '';
     }
     if (networkLegend) {
       networkLegend.innerHTML = '';
+    }
+    if (socketTrafficLegend) {
+      socketTrafficLegend.innerHTML = '';
     }
     if (requestsLegend) {
       requestsLegend.innerHTML = '';
@@ -669,6 +749,17 @@ function renderMetricsHistory(history) {
     }
   }
 
+  const hasSocketTraffic = drawSocketTrafficChart(history);
+  if (socketTrafficCanvas) {
+    socketTrafficCanvas.style.display = hasSocketTraffic ? 'block' : 'none';
+  }
+  if (socketTrafficEmpty) {
+    socketTrafficEmpty.style.display = hasSocketTraffic ? 'none' : 'flex';
+    if (!hasSocketTraffic) {
+      socketTrafficEmpty.textContent = 'Collecting socket traffic history...';
+    }
+  }
+
   const hasRequests = drawRequestsChart(history);
   if (requestsCanvas) {
     requestsCanvas.style.display = hasRequests ? 'block' : 'none';
@@ -695,6 +786,7 @@ function scheduleMetricsHistoryRedraw() {
     if (latestMetricsHistory) {
       drawUtilizationChart(latestMetricsHistory);
       drawNetworkChart(latestMetricsHistory);
+      drawSocketTrafficChart(latestMetricsHistory);
       drawRequestsChart(latestMetricsHistory);
     }
   }, 150);
@@ -709,6 +801,7 @@ function renderNetworkMetrics() {
   const metrics = latestMetrics;
   const network = metrics?.network ?? null;
   const requests = metrics?.requests ?? null;
+  const socketTraffic = metrics?.socketTraffic ?? null;
 
   const cards = [];
 
@@ -732,7 +825,78 @@ function renderNetworkMetrics() {
       <div class="metric-card">
         <div class="metric-title">Network Usage</div>
         <div class="metric-value">—</div>
-        <div class="metric-subtext">Network usage metrics unavailable on this system.</div>
+      <div class="metric-subtext">Network usage metrics unavailable on this system.</div>
+      </div>
+    `);
+  }
+
+  if (socketTraffic) {
+    const inboundRateText = formatRate(socketTraffic.inboundRate);
+    const outboundRateText = formatRate(socketTraffic.outboundRate);
+    const sampledAt = socketTraffic.lastSampledAt ? new Date(socketTraffic.lastSampledAt).toLocaleTimeString() : null;
+
+    const topInbound = Object.entries(socketTraffic.perEventInboundRates ?? {})
+      .map(([name, value]) => {
+        const numeric = Number(value);
+        return [name, Number.isFinite(numeric) ? numeric : 0];
+      })
+      .filter(([, rate]) => rate > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    const topOutbound = Object.entries(socketTraffic.perEventOutboundRates ?? {})
+      .map(([name, value]) => {
+        const numeric = Number(value);
+        return [name, Number.isFinite(numeric) ? numeric : 0];
+      })
+      .filter(([, rate]) => rate > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    const detailLines = [
+      `Upload: ${outboundRateText} ↑`,
+      `Total Down: ${formatBytes(socketTraffic.totalInboundBytes)} · Total Up: ${formatBytes(socketTraffic.totalOutboundBytes)}`
+    ];
+
+    if (topInbound.length) {
+      detailLines.push(
+        `Inbound: ${topInbound
+          .map(([name, rate]) => `${name}: ${formatRate(rate)}`)
+          .join(', ')}`
+      );
+    }
+
+    if (topOutbound.length) {
+      detailLines.push(
+        `Outbound: ${topOutbound
+          .map(([name, rate]) => `${name}: ${formatRate(rate)}`)
+          .join(', ')}`
+      );
+    }
+
+    if (!topInbound.length && !topOutbound.length) {
+      detailLines.push('No socket traffic recorded in the last sample');
+    }
+
+    if (sampledAt) {
+      detailLines.push(`Sampled ${sampledAt}`);
+    }
+
+    cards.push(`
+      <div class="metric-card">
+        <div class="metric-title">Socket Traffic</div>
+        <div class="metric-value">${inboundRateText} ↓</div>
+        <div class="metric-subtext">
+          ${detailLines.join('<br>')}
+        </div>
+      </div>
+    `);
+  } else if (metrics) {
+    cards.push(`
+      <div class="metric-card">
+        <div class="metric-title">Socket Traffic</div>
+        <div class="metric-value">—</div>
+        <div class="metric-subtext">Collecting socket traffic metrics...</div>
       </div>
     `);
   }
