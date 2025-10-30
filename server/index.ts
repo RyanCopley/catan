@@ -44,6 +44,16 @@ app.use(express.urlencoded({ extended: true }));
 
 if (IS_PRODUCTION) {
   app.set('trust proxy', 1);
+  app.use((req, _res, next) => {
+    if (req.path.startsWith('/admin')) {
+      const forwardedProto = req.headers['x-forwarded-proto'];
+      const protoChain = Array.isArray(forwardedProto) ? forwardedProto.join(',') : forwardedProto;
+      console.log(
+        `[session-debug] secure=${req.secure} protocol=${req.protocol} forwardedProto=${protoChain ?? 'n/a'} ip=${req.ip} ips=${req.ips?.join(',') || 'n/a'} url=${req.originalUrl}`
+      );
+    }
+    next();
+  });
 }
 
 // Session configuration with security best practices

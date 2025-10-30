@@ -330,10 +330,16 @@ export function createAdminRouter(games: Map<string, Game>, io: Server, cleanupS
     if (validateAdminCredentials(username, password)) {
       req.session.isAdmin = true;
       recordLoginAttempt(req, true);
+      console.log(
+        `[session-debug] login success sessionID=${req.sessionID} cookieSecure=${req.session.cookie.secure} reqSecure=${req.secure}`
+      );
       console.log(`Admin login successful from IP: ${req.ip}`);
       res.json({ success: true });
     } else {
       recordLoginAttempt(req, false);
+      console.warn(
+        `[session-debug] login failure sessionID=${req.sessionID} cookieSecure=${req.session.cookie.secure} reqSecure=${req.secure}`
+      );
       res.status(401).json({ error: 'Invalid credentials' });
     }
   });
