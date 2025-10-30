@@ -161,4 +161,13 @@ export function setupUIListeners() {
     const messageLog = document.querySelector('.message-log');
     messageLog.classList.toggle('collapsed');
   });
+
+  // Cost legend toggle
+  const costLegend = document.getElementById('costLegend');
+  const costLegendToggle = document.getElementById('costLegendToggle');
+  if (costLegend && costLegendToggle) {
+    costLegendToggle.addEventListener('click', () => {
+      costLegend.classList.toggle('collapsed');
+    });
+  }
 }

@@ -350,17 +350,19 @@
 }
 
 .scoreboard-stats {
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
   justify-content: space-between;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  column-gap: 12px;
+  width: 100%;
 }
 
 .scoreboard-stat {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
   font-size: 11px;
 }
 
@@ -512,6 +514,78 @@
   background: rgba(255, 107, 107, 0.1);
   box-shadow: 0 8px 18px rgba(255, 107, 107, 0.18);
   transform: translateY(-2px);
+}
+
+/* Build Cost Legend */
+.cost-legend {
+  margin-top: 15px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.cost-legend-header {
+  padding: 10px 12px;
+  background: #f8f9fa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-weight: bold;
+  color: #667eea;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.cost-legend-header:hover {
+  background: #e9ecef;
+}
+
+.cost-legend-content {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: white;
+}
+
+.cost-legend-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.cost-legend-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.cost-legend-item {
+  font-weight: 600;
+  color: #495057;
+}
+
+.cost-legend-cost {
+  color: #343a40;
+}
+
+.cost-legend-vp {
+  font-weight: 600;
+  color: #f08c00;
+  text-align: right;
+}
+
+.cost-legend.collapsed .cost-legend-content {
+  display: none;
+}
+
+.cost-legend.collapsed .toggle-icon {
+  transform: rotate(180deg);
 }
 
 @keyframes resourceFloat {

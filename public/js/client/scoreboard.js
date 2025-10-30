@@ -94,17 +94,25 @@ export function updateScoreboard() {
     const scoreStat = document.createElement('div');
     scoreStat.className = 'scoreboard-stat score';
     scoreStat.innerHTML = `
-      <span class="scoreboard-stat-label">Score:</span>
+      <span class="scoreboard-stat-label">VPs:</span>
       <span class="scoreboard-stat-value">${visibleScore}</span>
     `;
     statsDiv.appendChild(scoreStat);
 
     // Road length
+    const totalRoads = Array.isArray(player.roads)
+      ? player.roads.length
+      : (typeof player.roadCount === 'number' ? player.roadCount : 0);
+    const longestRoadLength = Number.isFinite(player.longestRoadLength)
+      ? player.longestRoadLength
+      : 0;
+    const roadDisplay = `${longestRoadLength}/${totalRoads}`;
+
     const roadStat = document.createElement('div');
     roadStat.className = 'scoreboard-stat';
     roadStat.innerHTML = `
       <span class="scoreboard-stat-label">Roads:</span>
-      <span class="scoreboard-stat-value">${player.longestRoadLength || 0}</span>
+      <span class="scoreboard-stat-value">${roadDisplay}</span>
     `;
     statsDiv.appendChild(roadStat);
 
