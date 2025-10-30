@@ -41,10 +41,13 @@ export default class BoardRenderer {
 
     // SVG images for terrain types
     this.terrainImages = {};
+    this.resourceIcons = {};
     this.imagesLoaded = false;
+    this.iconsLoaded = false;
     this.fontBase64 = null;
     this.loadFontAsBase64().then(() => {
       this.loadTerrainImages();
+      this.loadResourceIcons();
     });
 
     this.resizeCanvas();
@@ -94,24 +97,49 @@ export default class BoardRenderer {
     });
   }
 
-  async loadFontAsBase64() {
-    if (this.fontBase64) return this.fontBase64;
+  loadResourceIcons() {
+    const resourceToIcon = {
+      wood: 'icon-wood.svg',
+      brick: 'icon-brick.svg',
+      sheep: 'icon-sheep.svg',
+      wheat: 'icon-grain.svg',
+      ore: 'icon-ore.svg'
+    };
 
-    try {
-      const response = await fetch('/fonts/Futura-Bold.otf');
-      const blob = await response.blob();
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          this.fontBase64 = reader.result.split(',')[1];
-          resolve(this.fontBase64);
-        };
-        reader.readAsDataURL(blob);
-      });
-    } catch (err) {
-      console.error('Failed to load font:', err);
-      return null;
-    }
+    let loadedCount = 0;
+    const totalIcons = Object.keys(resourceToIcon).length;
+
+    Object.entries(resourceToIcon).forEach(([resource, filename]) => {
+      const img = new Image();
+      img.onload = () => {
+        this.resourceIcons[resource] = img;
+        loadedCount++;
+        if (loadedCount === totalIcons) {
+          this.iconsLoaded = true;
+          if (this.board) {
+            this.render();
+          }
+        }
+      };
+      img.onerror = (err) => {
+        console.error(`Failed to load icon for ${resource}:`, err);
+        loadedCount++;
+        if (loadedCount === totalIcons) {
+          this.iconsLoaded = true;
+          if (this.board) {
+            this.render();
+          }
+        }
+      };
+      img.src = `/images/${filename}`;
+    });
+  }
+
+  async loadFontAsBase64() {
+    // Montserrat is loaded via Google Fonts in index.html
+    // No need to load font as base64 anymore
+    this.fontBase64 = null;
+    return null;
   }
 
   getHexImage(terrain, number) {
@@ -129,19 +157,8 @@ export default class BoardRenderer {
     const svgClone = baseSvg.cloneNode(true);
     const svgElement = svgClone.documentElement;
 
-    // Add @font-face with base64 embedded font to SVG
-    let styleElement = svgElement.querySelector('style');
-    if (styleElement && this.fontBase64) {
-      const fontFace = `
-        @font-face {
-          font-family: 'Futura-Bold';
-          src: url(data:font/otf;base64,${this.fontBase64}) format('opentype');
-          font-weight: bold;
-          font-style: normal;
-        }
-      `;
-      styleElement.textContent = fontFace + '\n' + styleElement.textContent;
-    }
+    // SVG already includes Montserrat font-family in its styles
+    // No need to add @font-face since Google Fonts is loaded globally
 
     if (number) {
       // Calculate dots (probability dots)
@@ -756,18 +773,17 @@ export default class BoardRenderer {
     } else if (port.type === '2:1') {
       this.ctx.fillText('2:1', portX, portY - 4);
 
-      // Draw resource emoji
-      this.ctx.font = '10px Arial';
-      const resourceEmoji = {
-        wood: '🌲',
-        brick: '🧱',
-        sheep: '🐑',
-        wheat: '🌾',
-        ore: '⛰️'
-      };
-
-      this.ctx.fillStyle = '#000';
-      this.ctx.fillText(resourceEmoji[port.resource] || '?', portX, portY + 7);
+      // Draw resource icon
+      if (this.iconsLoaded && this.resourceIcons[port.resource]) {
+        const icon = this.resourceIcons[port.resource];
+        const iconSize = 12;
+        this.ctx.drawImage(icon, portX - iconSize / 2, portY + 2, iconSize, iconSize);
+      } else {
+        // Fallback to text if icons not loaded
+        this.ctx.font = '9px Arial';
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillText(port.resource?.substring(0, 1).toUpperCase() || '?', portX, portY + 7);
+      }
     }
   }
 

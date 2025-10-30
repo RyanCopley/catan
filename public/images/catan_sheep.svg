@@ -13,7 +13,7 @@
 	.st7{fill:#80637E;}
 	.st8{fill:#522C72;}
 	.st9{fill:#FFFFFF;}
-	.st10{font-family:'Futura-Bold';}
+	.st10{font-family:'Montserrat', sans-serif; font-weight: 700;}
 	.st11{font-size:86.7426px;}
 	.st12{fill:#2A4928;}
 </style>
@@ -84,7 +84,7 @@
 			v100.2C210.6,204.4,204,211,195.8,211z"/>
 		<path class="st9" d="M195.8,206.7H92.2c-8.1,0-14.8-6.6-14.8-14.8V91.8C77.4,83.6,84,77,92.2,77h103.7c8.1,0,14.8,6.6,14.8,14.8
 			V192C210.6,200.1,204,206.7,195.8,206.7z"/>
-					<g style="transform: translate(-8px,0px)">
+					<g style="transform: translate(-8px,-8px)">
 
 		<text transform="matrix(1 0 0 1 114.2673 158.6904)" class="st0 st10 st11">6</text>
 		</g>

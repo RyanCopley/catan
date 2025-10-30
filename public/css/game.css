@@ -481,7 +481,7 @@
 .cost-legend-cost {
   color: #343a40;
   display: flex;
-  gap: 6px;
+  gap: 0px;
   justify-self: start;
   align-items: center;
   flex-wrap: wrap;

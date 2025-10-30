@@ -334,3 +334,27 @@ select:focus {
   background: rgba(25, 118, 210, 0.9);
   border-left-color: #90caf9;
 }
+
+/* Resource Icons */
+.resource-icon {
+  width: 40px;
+  height: 40px;
+  display: block;
+  margin: 0 auto;
+}
+
+.cost-legend-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 1px;
+  padding: 0 1px;
+}
+
+.resource-selector-icon {
+  width: 32px;
+  height: 32px;
+  display: block;
+  margin: 0 auto;
+}

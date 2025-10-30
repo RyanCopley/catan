@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Catan Online</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/layout.css">
@@ -164,23 +167,23 @@
             <div id="playerResources">
               <div class="resource-list">
                 <div class="resource">
-                  <span class="resource-icon">🌲</span>
+                  <img src="/images/icon-wood.svg" alt="Wood" class="resource-icon">
                   <span class="resource-count" id="wood">0</span>
                 </div>
                 <div class="resource">
-                  <span class="resource-icon">🧱</span>
+                  <img src="/images/icon-brick.svg" alt="Brick" class="resource-icon">
                   <span class="resource-count" id="brick">0</span>
                 </div>
                 <div class="resource">
-                  <span class="resource-icon">🐑</span>
+                  <img src="/images/icon-sheep.svg" alt="Sheep" class="resource-icon">
                   <span class="resource-count" id="sheep">0</span>
                 </div>
                 <div class="resource">
-                  <span class="resource-icon">🌾</span>
+                  <img src="/images/icon-grain.svg" alt="Wheat" class="resource-icon">
                   <span class="resource-count" id="wheat">0</span>
                 </div>
                 <div class="resource">
-                  <span class="resource-icon">⛰️</span>
+                  <img src="/images/icon-ore.svg" alt="Ore" class="resource-icon">
                   <span class="resource-count" id="ore">0</span>
                 </div>
               </div>
@@ -194,38 +197,38 @@
                 <div class="cost-legend-row">
                   <span class="cost-legend-item">Road</span>
                   <span class="cost-legend-cost">
-                    <span class="cost-legend-icon">🌲</span>
-                    <span class="cost-legend-icon">🧱</span>
+                    <img src="/images/icon-wood.svg" alt="Wood" class="cost-legend-icon">
+                    <img src="/images/icon-brick.svg" alt="Brick" class="cost-legend-icon">
                   </span>
                   <span class="cost-legend-vp cost-legend-vp-empty">0 VP</span>
                 </div>
                 <div class="cost-legend-row">
                   <span class="cost-legend-item">Settlement</span>
                   <span class="cost-legend-cost">
-                    <span class="cost-legend-icon">🌲</span>
-                    <span class="cost-legend-icon">🧱</span>
-                    <span class="cost-legend-icon">🐑</span>
-                    <span class="cost-legend-icon">🌾</span>
+                    <img src="/images/icon-wood.svg" alt="Wood" class="cost-legend-icon">
+                    <img src="/images/icon-brick.svg" alt="Brick" class="cost-legend-icon">
+                    <img src="/images/icon-sheep.svg" alt="Sheep" class="cost-legend-icon">
+                    <img src="/images/icon-grain.svg" alt="Wheat" class="cost-legend-icon">
                   </span>
                   <span class="cost-legend-vp">1 VP</span>
                 </div>
                 <div class="cost-legend-row">
                   <span class="cost-legend-item">City</span>
                   <span class="cost-legend-cost">
-                    <span class="cost-legend-icon">🌾</span>
-                    <span class="cost-legend-icon">🌾</span>
-                    <span class="cost-legend-icon">⛰️</span>
-                    <span class="cost-legend-icon">⛰️</span>
-                    <span class="cost-legend-icon">⛰️</span>
+                    <img src="/images/icon-grain.svg" alt="Wheat" class="cost-legend-icon">
+                    <img src="/images/icon-grain.svg" alt="Wheat" class="cost-legend-icon">
+                    <img src="/images/icon-ore.svg" alt="Ore" class="cost-legend-icon">
+                    <img src="/images/icon-ore.svg" alt="Ore" class="cost-legend-icon">
+                    <img src="/images/icon-ore.svg" alt="Ore" class="cost-legend-icon">
                   </span>
                   <span class="cost-legend-vp">2 VP</span>
                 </div>
                 <div class="cost-legend-row">
                   <span class="cost-legend-item">Development Card</span>
                   <span class="cost-legend-cost">
-                    <span class="cost-legend-icon">🐑</span>
-                    <span class="cost-legend-icon">🌾</span>
-                    <span class="cost-legend-icon">⛰️</span>
+                    <img src="/images/icon-sheep.svg" alt="Sheep" class="cost-legend-icon">
+                    <img src="/images/icon-grain.svg" alt="Wheat" class="cost-legend-icon">
+                    <img src="/images/icon-ore.svg" alt="Ore" class="cost-legend-icon">
                   </span>
                   <span class="cost-legend-vp cost-legend-vp-empty">0 VP</span>
                 </div>
@@ -277,23 +280,23 @@
             <h3>You Give:</h3>
             <div class="resource-selectors" id="offeringResources">
               <div class="resource-selector">
-                <label>🌲</label>
+                <label><img src="/images/icon-wood.svg" alt="Wood" class="resource-selector-icon"></label>
                 <input type="number" id="give-wood" min="0" value="0">
               </div>
               <div class="resource-selector">
-                <label>🧱</label>
+                <label><img src="/images/icon-brick.svg" alt="Brick" class="resource-selector-icon"></label>
                 <input type="number" id="give-brick" min="0" value="0">
               </div>
               <div class="resource-selector">
-                <label>🐑</label>
+                <label><img src="/images/icon-sheep.svg" alt="Sheep" class="resource-selector-icon"></label>
                 <input type="number" id="give-sheep" min="0" value="0">
               </div>
               <div class="resource-selector">
-                <label>🌾</label>
+                <label><img src="/images/icon-grain.svg" alt="Wheat" class="resource-selector-icon"></label>
                 <input type="number" id="give-wheat" min="0" value="0">
               </div>
               <div class="resource-selector">
-                <label>⛰️</label>
+                <label><img src="/images/icon-ore.svg" alt="Ore" class="resource-selector-icon"></label>
                 <input type="number" id="give-ore" min="0" value="0">
               </div>
             </div>
@@ -302,23 +305,23 @@
             <h3>You Get:</h3>
             <div class="resource-selectors" id="requestingResources">
               <div class="resource-selector">
-                <label>🌲</label>
+                <label><img src="/images/icon-wood.svg" alt="Wood" class="resource-selector-icon"></label>
                 <input type="number" id="get-wood" min="0" value="0">
               </div>
               <div class="resource-selector">
-                <label>🧱</label>
+                <label><img src="/images/icon-brick.svg" alt="Brick" class="resource-selector-icon"></label>
                 <input type="number" id="get-brick" min="0" value="0">
               </div>
               <div class="resource-selector">
-                <label>🐑</label>
+                <label><img src="/images/icon-sheep.svg" alt="Sheep" class="resource-selector-icon"></label>
                 <input type="number" id="get-sheep" min="0" value="0">
               </div>
               <div class="resource-selector">
-                <label>🌾</label>
+                <label><img src="/images/icon-grain.svg" alt="Wheat" class="resource-selector-icon"></label>
                 <input type="number" id="get-wheat" min="0" value="0">
               </div>
               <div class="resource-selector">
-                <label>⛰️</label>
+                <label><img src="/images/icon-ore.svg" alt="Ore" class="resource-selector-icon"></label>
                 <input type="number" id="get-ore" min="0" value="0">
               </div>
             </div>
@@ -392,23 +395,23 @@
           <p id="discardMessage">You must discard <span id="discardAmount">0</span> cards.</p>
           <div class="resource-selectors" id="discardResources">
             <div class="resource-selector">
-              <label>🌲</label>
+              <label><img src="/images/icon-wood.svg" alt="Wood" class="resource-selector-icon"></label>
               <input type="number" id="discard-wood" min="0" value="0">
             </div>
             <div class="resource-selector">
-              <label>🧱</label>
+              <label><img src="/images/icon-brick.svg" alt="Brick" class="resource-selector-icon"></label>
               <input type="number" id="discard-brick" min="0" value="0">
             </div>
             <div class="resource-selector">
-              <label>🐑</label>
+              <label><img src="/images/icon-sheep.svg" alt="Sheep" class="resource-selector-icon"></label>
               <input type="number" id="discard-sheep" min="0" value="0">
             </div>
             <div class="resource-selector">
-              <label>🌾</label>
+              <label><img src="/images/icon-grain.svg" alt="Wheat" class="resource-selector-icon"></label>
               <input type="number" id="discard-wheat" min="0" value="0">
             </div>
             <div class="resource-selector">
-              <label>⛰️</label>
+              <label><img src="/images/icon-ore.svg" alt="Ore" class="resource-selector-icon"></label>
               <input type="number" id="discard-ore" min="0" value="0">
             </div>
           </div>

@@ -507,11 +507,17 @@ export function cleanupHiddenOffers() {
 
 export function formatResources(resources) {
   const parts = [];
-  const resourceEmojis = { wood: '🌲', brick: '🧱', sheep: '🐑', wheat: '🌾', ore: '⛰️' };
+  const resourceIcons = {
+    wood: 'icon-wood.svg',
+    brick: 'icon-brick.svg',
+    sheep: 'icon-sheep.svg',
+    wheat: 'icon-grain.svg',
+    ore: 'icon-ore.svg'
+  };
 
   for (const [resource, amount] of Object.entries(resources)) {
     if (amount > 0) {
-      parts.push(`${amount} ${resourceEmojis[resource]}`);
+      parts.push(`${amount} <img src="/images/${resourceIcons[resource]}" alt="${resource}" style="width: 16px; height: 16px; vertical-align: middle; display: inline-block;">`);
     }
   }
 
