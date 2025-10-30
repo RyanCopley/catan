@@ -1,5 +1,12 @@
 /* Base Styles - Reset, Typography, Colors, Utilities */
 
+@font-face {
+  font-family: 'Futura-Bold';
+  src: url('/fonts/Futura-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+}
+
 * {
   margin: 0;
   padding: 0;

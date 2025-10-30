@@ -39,9 +39,199 @@ export default class BoardRenderer {
       orange: '#ff922b'
     };
 
+    // SVG images for terrain types
+    this.terrainImages = {};
+    this.imagesLoaded = false;
+    this.fontBase64 = null;
+    this.loadFontAsBase64().then(() => {
+      this.loadTerrainImages();
+    });
+
     this.resizeCanvas();
     this.centerBoard();
     this.setupEventListeners();
+  }
+
+  loadTerrainImages() {
+    const terrainToSvg = {
+      forest: 'catan_wood.svg',
+      hills: 'catan_brick.svg',
+      pasture: 'catan_sheep.svg',
+      fields: 'catan_grain.svg',
+      mountains: 'catan_ore.svg'
+    };
+
+    this.baseSvgDocs = {};
+    // Clear cache on reload to ensure fresh images
+    this.hexImageCache = {};
+    let loadedCount = 0;
+    const totalImages = Object.keys(terrainToSvg).length;
+
+    Object.entries(terrainToSvg).forEach(([terrain, filename]) => {
+      fetch(`/images/${filename}`)
+        .then(response => response.text())
+        .then(svgText => {
+          const parser = new DOMParser();
+          this.baseSvgDocs[terrain] = parser.parseFromString(svgText, 'image/svg+xml');
+          loadedCount++;
+          if (loadedCount === totalImages) {
+            this.imagesLoaded = true;
+            if (this.board) {
+              this.render();
+            }
+          }
+        })
+        .catch(err => {
+          console.error(`Failed to load SVG for ${terrain}:`, err);
+          loadedCount++;
+          if (loadedCount === totalImages) {
+            this.imagesLoaded = true;
+            if (this.board) {
+              this.render();
+            }
+          }
+        });
+    });
+  }
+
+  async loadFontAsBase64() {
+    if (this.fontBase64) return this.fontBase64;
+
+    try {
+      const response = await fetch('/fonts/Futura-Bold.otf');
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          this.fontBase64 = reader.result.split(',')[1];
+          resolve(this.fontBase64);
+        };
+        reader.readAsDataURL(blob);
+      });
+    } catch (err) {
+      console.error('Failed to load font:', err);
+      return null;
+    }
+  }
+
+  getHexImage(terrain, number) {
+    // Create a cache key
+    const cacheKey = `${terrain}_${number || 'none'}`;
+
+    if (this.hexImageCache[cacheKey]) {
+      return this.hexImageCache[cacheKey];
+    }
+
+    const baseSvg = this.baseSvgDocs[terrain];
+    if (!baseSvg) return null;
+
+    // Clone the SVG document
+    const svgClone = baseSvg.cloneNode(true);
+    const svgElement = svgClone.documentElement;
+
+    // Add @font-face with base64 embedded font to SVG
+    let styleElement = svgElement.querySelector('style');
+    if (styleElement && this.fontBase64) {
+      const fontFace = `
+        @font-face {
+          font-family: 'Futura-Bold';
+          src: url(data:font/otf;base64,${this.fontBase64}) format('opentype');
+          font-weight: bold;
+          font-style: normal;
+        }
+      `;
+      styleElement.textContent = fontFace + '\n' + styleElement.textContent;
+    }
+
+    if (number) {
+      // Calculate dots (probability dots)
+      const dots = number === 6 || number === 8 ? 5 :
+                   number === 5 || number === 9 ? 4 :
+                   number === 4 || number === 10 ? 3 :
+                   number === 3 || number === 11 ? 2 : 1;
+
+      // Update the number text - find the text element that contains a digit (not the color code)
+      const textElements = svgElement.querySelectorAll('text');
+      let numberTextElement = null;
+      textElements.forEach(text => {
+        // Find the text that contains a digit (the default "6" in the SVG)
+        if (text.textContent && text.textContent.trim().match(/^\d+$/)) {
+          numberTextElement = text;
+        }
+      });
+
+      if (numberTextElement) {
+        numberTextElement.textContent = number.toString();
+        // Make number red for 6 and 8
+        if (number === 6 || number === 8) {
+          numberTextElement.setAttribute('fill', '#ff0000');
+        }
+        // Center the text properly
+        numberTextElement.setAttribute('text-anchor', 'middle');
+        numberTextElement.setAttribute('dominant-baseline', 'central');
+        // Position at center of the SVG (288x288)
+        numberTextElement.setAttribute('x', '144');
+        numberTextElement.setAttribute('y', '144');
+        numberTextElement.removeAttribute('transform');
+        // Tighten letter spacing
+        numberTextElement.setAttribute('letter-spacing', '-10');
+      } else {
+        console.warn('Could not find number text element');
+      }
+
+      // Show/hide dot layers - hide all first
+      const allDotLayers = svgElement.querySelectorAll('[id^="_x"]');
+      allDotLayers.forEach(layer => {
+        layer.setAttribute('display', 'none');
+      });
+
+      // Show only the correct dot layer
+      const dotLayerId = `_x3${dots}_`; // _x31_ for 1, _x32_ for 2, etc.
+      const correctLayer = svgElement.querySelector(`#${dotLayerId}`);
+      if (correctLayer) {
+        correctLayer.removeAttribute('style');
+        correctLayer.setAttribute('display', 'inline');
+      } else {
+        console.warn(`Could not find dot layer: ${dotLayerId} for number ${number} (${dots} dots)`);
+      }
+    } else {
+      // Hide all number-related elements for non-numbered hexes (desert)
+      const textElements = svgElement.querySelectorAll('text');
+      textElements.forEach(textElement => {
+        if (textElement.textContent.match(/^\d+$/)) {
+          const parent = textElement.parentElement;
+          if (parent && parent.tagName === 'g') {
+            parent.setAttribute('display', 'none');
+          }
+        }
+      });
+
+      // Hide all dot layers
+      const allDotLayers = svgElement.querySelectorAll('[id^="_x"]');
+      allDotLayers.forEach(layer => {
+        layer.setAttribute('display', 'none');
+      });
+    }
+
+    // Convert SVG to data URL
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svgElement);
+    const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+
+    // Create image from data URL
+    const img = new Image();
+    img.onload = () => {
+      // Re-render when image loads
+      if (this.board) {
+        this.render();
+      }
+    };
+    img.src = dataUrl;
+
+    // Cache the image
+    this.hexImageCache[cacheKey] = img;
+
+    return img;
   }
 
   resizeCanvas() {
@@ -427,11 +617,7 @@ export default class BoardRenderer {
     const centerX = this.offsetX + x;
     const centerY = this.offsetY + y;
 
-    // Draw hexagon (flat-topped, starting from right vertex)
-    this.ctx.fillStyle = this.colors[hex.terrain];
-    this.ctx.strokeStyle = '#333';
-    this.ctx.lineWidth = 2;
-
+    // Create hexagon path
     this.ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const angle = Math.PI / 3 * i;
@@ -444,41 +630,51 @@ export default class BoardRenderer {
       }
     }
     this.ctx.closePath();
-    this.ctx.fill();
-    this.ctx.stroke();
 
-    // Draw number token
-    if (hex.number) {
-      this.ctx.fillStyle = '#f0e68c';
-      this.ctx.strokeStyle = '#333';
+    // Get the dynamically created hex image with the number chip
+    const hexImage = this.imagesLoaded ? this.getHexImage(hex.terrain, hex.number) : null;
 
+    if (hexImage && hexImage.complete) {
+      // Save context state
+      this.ctx.save();
+
+      // Clip to hexagon shape
+      this.ctx.clip();
+
+      // Calculate image dimensions to fill the hexagon
+      const imgSize = size * 2;
+      const imgX = centerX - imgSize / 2;
+      const imgY = centerY - imgSize / 2;
+
+      // Draw the image (now includes the number chip)
+      this.ctx.drawImage(hexImage, imgX, imgY, imgSize, imgSize);
+
+      // Restore context to remove clipping
+      this.ctx.restore();
+
+      // Redraw the hexagon path for the stroke
       this.ctx.beginPath();
-      this.ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.stroke();
-
-      this.ctx.fillStyle = hex.number === 6 || hex.number === 8 ? '#ff0000' : '#000';
-      this.ctx.font = 'bold 18px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(hex.number.toString(), centerX, centerY);
-
-      // Draw dots
-      const dots = hex.number === 6 || hex.number === 8 ? 5 :
-                   hex.number === 5 || hex.number === 9 ? 4 :
-                   hex.number === 4 || hex.number === 10 ? 3 :
-                   hex.number === 3 || hex.number === 11 ? 2 : 1;
-
-      this.ctx.fillStyle = '#000';
-      const dotSpacing = 5;
-      const totalWidth = (dots - 1) * dotSpacing;
-      const startX = centerX - totalWidth / 2;
-      for (let i = 0; i < dots; i++) {
-        this.ctx.beginPath();
-        this.ctx.arc(startX + i * dotSpacing, centerY + 12, 2, 0, Math.PI * 2);
-        this.ctx.fill();
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 3 * i;
+        const vx = centerX + size * Math.cos(angle);
+        const vy = centerY + size * Math.sin(angle);
+        if (i === 0) {
+          this.ctx.moveTo(vx, vy);
+        } else {
+          this.ctx.lineTo(vx, vy);
+        }
       }
+      this.ctx.closePath();
+    } else {
+      // Fallback to solid color
+      this.ctx.fillStyle = this.colors[hex.terrain];
+      this.ctx.fill();
     }
+
+    // Draw hexagon border
+    this.ctx.strokeStyle = '#333';
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
 
     // Draw robber
     if (hex.hasRobber) {
