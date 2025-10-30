@@ -121,6 +121,7 @@ export interface GameState {
   phase: GamePhase;
   turnPhase: TurnPhase;
   diceRoll: number | null;
+  lastDiceResult: DiceResult | null;
   setupRound: number;
   setupSettlementPlaced: boolean;
   setupRoadPlaced: boolean;

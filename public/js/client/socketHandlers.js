@@ -83,8 +83,13 @@ export function setupSocketListeners() {
     this.playerId = data.playerId;
     this.gameState = data.game;
     this.awardsInitialized = false;
-    if (this.gameState && this.gameState.diceRoll !== null) {
+    const lastDiceResult = this.gameState?.lastDiceResult ?? null;
+    if (lastDiceResult) {
       this.hasRolledDice = true;
+      this.applyDiceResult(lastDiceResult);
+    } else if (this.gameState && this.gameState.diceRoll !== null) {
+      this.hasRolledDice = true;
+      this.applyDiceResult({ die1: null, die2: null, total: this.gameState.diceRoll });
     } else {
       this.hasRolledDice = false;
       this.resetDiceDisplay();
@@ -125,8 +130,13 @@ export function setupSocketListeners() {
 
   this.socket.on('playerReconnected', (data) => {
     this.gameState = data.game;
-    if (this.gameState && this.gameState.diceRoll !== null) {
+    const lastDiceResult = this.gameState?.lastDiceResult ?? null;
+    if (lastDiceResult) {
       this.hasRolledDice = true;
+      this.applyDiceResult(lastDiceResult);
+    } else if (this.gameState && this.gameState.diceRoll !== null) {
+      this.hasRolledDice = true;
+      this.applyDiceResult({ die1: null, die2: null, total: this.gameState.diceRoll });
     }
     this.updateDiceVisibility();
     if (this.gameState.phase === 'waiting') {
@@ -162,10 +172,7 @@ export function setupSocketListeners() {
     this.hasRolledDice = true;
     const result = data.diceResult;
 
-    // Update dice display
-    document.getElementById('die1').setAttribute('data-value', result.die1);
-    document.getElementById('die2').setAttribute('data-value', result.die2);
-    document.getElementById('diceTotal').textContent = result.total;
+    this.applyDiceResult(result);
     this.updateDiceVisibility();
 
     this.renderer.addLogMessage(`Dice rolled: ${result.total}`);

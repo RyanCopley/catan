@@ -139,8 +139,13 @@ class SocketManager {
     this.client.gameState = data.game;
     this.client.resetAwardTracking();
 
-    if (this.client.gameState && this.client.gameState.diceRoll !== null) {
+    const lastDiceResult = this.client.gameState?.lastDiceResult ?? null;
+    if (lastDiceResult) {
       this.client.hasRolledDice = true;
+      this.client.uiManager.applyDiceResult(lastDiceResult);
+    } else if (this.client.gameState && this.client.gameState.diceRoll !== null) {
+      this.client.hasRolledDice = true;
+      this.client.uiManager.applyDiceResult({ die1: null, die2: null, total: this.client.gameState.diceRoll });
     } else {
       this.client.hasRolledDice = false;
       this.client.uiManager.resetDiceDisplay();
@@ -180,8 +185,13 @@ class SocketManager {
 
   onPlayerReconnected(data) {
     this.client.gameState = data.game;
-    if (this.client.gameState && this.client.gameState.diceRoll !== null) {
+    const lastDiceResult = this.client.gameState?.lastDiceResult ?? null;
+    if (lastDiceResult) {
       this.client.hasRolledDice = true;
+      this.client.uiManager.applyDiceResult(lastDiceResult);
+    } else if (this.client.gameState && this.client.gameState.diceRoll !== null) {
+      this.client.hasRolledDice = true;
+      this.client.uiManager.applyDiceResult({ die1: null, die2: null, total: this.client.gameState.diceRoll });
     }
     this.client.uiManager.updateDiceVisibility();
 
@@ -229,9 +239,7 @@ class SocketManager {
     this.client.hasRolledDice = true;
     const result = data.diceResult;
 
-    document.getElementById('die1').setAttribute('data-value', result.die1);
-    document.getElementById('die2').setAttribute('data-value', result.die2);
-    document.getElementById('diceTotal').textContent = result.total;
+    this.client.uiManager.applyDiceResult(result);
     this.client.uiManager.updateDiceVisibility();
 
     this.client.renderer.addLogMessage(`Dice rolled: ${result.total}`);

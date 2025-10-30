@@ -45,6 +45,33 @@ export function resetDiceDisplay() {
   if (diceTotal) diceTotal.textContent = '—';
 }
 
+export function applyDiceResult(diceResult) {
+  const die1 = document.getElementById('die1');
+  const die2 = document.getElementById('die2');
+  const diceTotal = document.getElementById('diceTotal');
+
+  if (!die1 || !die2 || !diceTotal) return;
+
+  if (!diceResult) {
+    resetDiceDisplay();
+    return;
+  }
+
+  if (typeof diceResult.die1 === 'number') {
+    die1.setAttribute('data-value', diceResult.die1);
+  } else {
+    die1.removeAttribute('data-value');
+  }
+
+  if (typeof diceResult.die2 === 'number') {
+    die2.setAttribute('data-value', diceResult.die2);
+  } else {
+    die2.removeAttribute('data-value');
+  }
+
+  diceTotal.textContent = typeof diceResult.total === 'number' ? diceResult.total : '—';
+}
+
 export function updateDiceVisibility() {
   const diceContainer = document.querySelector('.dice-container');
   if (!diceContainer) return;

@@ -49,11 +49,24 @@ export function updateGameUI() {
 
   this.checkSpecialAwards();
 
-  if (this.gameState.phase === 'setup' && this.gameState.diceRoll === null) {
+  const lastDiceResult = this.gameState.lastDiceResult ?? null;
+
+  if (lastDiceResult) {
+    this.hasRolledDice = true;
+    this.applyDiceResult(lastDiceResult);
+  } else if (this.gameState.phase === 'setup' && this.gameState.diceRoll === null) {
     this.hasRolledDice = false;
     this.resetDiceDisplay();
   } else if (this.gameState.diceRoll !== null) {
     this.hasRolledDice = true;
+    this.applyDiceResult({
+      die1: null,
+      die2: null,
+      total: this.gameState.diceRoll
+    });
+  } else {
+    this.hasRolledDice = false;
+    this.resetDiceDisplay();
   }
   this.updateDiceVisibility();
 

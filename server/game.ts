@@ -22,6 +22,7 @@ export class Game {
   phase: GamePhase;
   turnPhase: TurnPhase;
   diceRoll: number | null;
+  lastDiceResult: DiceResult | null;
   setupRound: number;
   setupSettlementPlaced: boolean;
   setupRoadPlaced: boolean;
@@ -41,6 +42,7 @@ export class Game {
     this.phase = 'waiting';
     this.turnPhase = 'roll';
     this.diceRoll = null;
+    this.lastDiceResult = null;
     this.setupRound = 1;
     this.setupSettlementPlaced = false;
     this.setupRoadPlaced = false;
@@ -136,6 +138,7 @@ export class Game {
     this.devCardManager.initialize();
     this.phase = 'setup';
     this.turnPhase = 'place';
+    this.lastDiceResult = null;
     this.startedAt = Date.now();
     return true;
   }
@@ -148,6 +151,7 @@ export class Game {
     const die1 = Math.floor(Math.random() * 6) + 1;
     const die2 = Math.floor(Math.random() * 6) + 1;
     this.diceRoll = die1 + die2;
+    this.lastDiceResult = { die1, die2, total: this.diceRoll };
 
     if (this.diceRoll === 7) {
       handleRobber(this.players);
@@ -523,6 +527,7 @@ export class Game {
       phase: this.phase,
       turnPhase: this.turnPhase,
       diceRoll: this.diceRoll,
+      lastDiceResult: this.lastDiceResult,
       setupRound: this.setupRound,
       setupSettlementPlaced: this.setupSettlementPlaced,
       setupRoadPlaced: this.setupRoadPlaced,
@@ -565,6 +570,7 @@ export class Game {
     this.phase = state.phase;
     this.turnPhase = state.turnPhase;
     this.diceRoll = state.diceRoll;
+    this.lastDiceResult = state.lastDiceResult ?? null;
     this.setupRound = state.setupRound;
     this.setupSettlementPlaced = state.setupSettlementPlaced;
     this.setupRoadPlaced = state.setupRoadPlaced;
