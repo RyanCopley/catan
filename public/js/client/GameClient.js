@@ -32,6 +32,9 @@ class GameClient {
     this.hiddenOffers = new Set();
     this.hasRolledDice = false;
     this.isSpectator = false;
+    this.gameOverOverlayDismissed = false;
+    this.gameOverSoundPlayed = false;
+    this.forceGameOverOverlay = false;
     this.resetAwardTracking();
     this.lastResourceCounts = null;
 
@@ -61,5 +64,55 @@ Object.assign(
     setupUIListeners
   }
 );
+
+GameClient.prototype.showGameOverOverlay = function showGameOverOverlay({
+  title = 'Game Over',
+  details = '',
+  force = false
+} = {}) {
+  const overlay = document.getElementById('gameOverOverlay');
+  if (!overlay) return;
+
+  if (force) {
+    this.forceGameOverOverlay = true;
+    this.gameOverOverlayDismissed = false;
+  } else if (this.gameOverOverlayDismissed) {
+    return;
+  }
+
+  const titleEl = document.getElementById('gameOverTitle');
+  if (titleEl) {
+    titleEl.textContent = title;
+  }
+
+  const detailsEl = document.getElementById('gameOverDetails');
+  if (detailsEl) {
+    if (details) {
+      detailsEl.textContent = details;
+      detailsEl.style.display = 'block';
+    } else {
+      detailsEl.textContent = '';
+      detailsEl.style.display = 'none';
+    }
+  }
+
+  overlay.classList.add('visible');
+};
+
+GameClient.prototype.hideGameOverOverlay = function hideGameOverOverlay({
+  resetDismissed = true,
+  resetForce = true
+} = {}) {
+  const overlay = document.getElementById('gameOverOverlay');
+  if (overlay) {
+    overlay.classList.remove('visible');
+  }
+  if (resetForce) {
+    this.forceGameOverOverlay = false;
+  }
+  if (resetDismissed) {
+    this.gameOverOverlayDismissed = false;
+  }
+};
 
 export default GameClient;

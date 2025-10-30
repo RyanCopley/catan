@@ -92,24 +92,8 @@
         </div>
 
         <div class="sidebar">
-          <!-- Game Info -->
-          <div class="game-info-sidebar">
-            <div class="phase-timeline">
-              <div class="phase-step" data-phase="setup">
-                <div class="phase-dot"></div>
-                <div class="phase-label">Setup</div>
-              </div>
-              <div class="phase-line"></div>
-              <div class="phase-step" data-phase="playing">
-                <div class="phase-dot"></div>
-                <div class="phase-label">Playing</div>
-              </div>
-              <div class="phase-line"></div>
-              <div class="phase-step" data-phase="finished">
-                <div class="phase-dot"></div>
-                <div class="phase-label">Game Over</div>
-              </div>
-            </div>
+          <!-- Dice Panel -->
+          <div class="dice-panel">
             <div class="dice-container">
               <div class="dice-display">
                 <div class="die" id="die1">
@@ -236,6 +220,17 @@
             </div>
           </div>
           
+        </div>
+      </div>
+
+      <div id="gameOverOverlay" class="game-over-overlay">
+        <div class="game-over-content">
+          <h2 id="gameOverTitle">Game Over</h2>
+          <p id="gameOverDetails" class="game-over-details"></p>
+          <div class="game-over-actions">
+            <button id="gameOverSpectateBtn" class="btn btn-secondary">Spectate</button>
+            <button id="gameOverLobbyBtn" class="btn btn-primary">Return to Lobby</button>
+          </div>
         </div>
       </div>
 

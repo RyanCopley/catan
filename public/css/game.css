@@ -77,114 +77,22 @@
 }
 
 /* Game Info Sidebar */
-.game-info-sidebar {
-  background: #667eea;
-  color: white;
+/* Dice Panel */
+.dice-panel {
+  background: white;
+  border-radius: 10px;
   padding: 15px;
   margin-bottom: 15px;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-/* Phase Timeline */
-.phase-timeline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.phase-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  position: relative;
-}
-
-.phase-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  transition: all 0.3s ease;
-}
-
-.phase-step.active .phase-dot {
-  background: #ffd43b;
-  border-color: #ffd43b;
-  box-shadow: 0 0 10px rgba(255, 212, 59, 0.6);
-  transform: scale(1.3);
-}
-
-.phase-step.completed .phase-dot {
-  background: #51cf66;
-  border-color: #51cf66;
-}
-
-.phase-label {
-  font-size: 10px;
-  font-weight: bold;
-  white-space: nowrap;
-  opacity: 0.7;
-  transition: opacity 0.3s ease;
-}
-
-.phase-step.active .phase-label {
-  opacity: 1;
-  color: #ffd43b;
-}
-
-.phase-step.game-won .phase-dot {
-  background: #51cf66;
-  border-color: #51cf66;
-  box-shadow: 0 0 15px rgba(81, 207, 102, 0.8);
-  transform: scale(1.4);
-}
-
-.phase-step.game-won .phase-label {
-  opacity: 1;
-  color: #51cf66;
-  font-weight: bold;
-  font-size: 11px;
-}
-
-.phase-step.game-lost .phase-dot {
-  background: #ff6b6b;
-  border-color: #ff6b6b;
-  box-shadow: 0 0 15px rgba(255, 107, 107, 0.8);
-  transform: scale(1.4);
-}
-
-.phase-step.game-lost .phase-label {
-  opacity: 1;
-  color: #ff6b6b;
-  font-weight: bold;
-  font-size: 11px;
-}
-
-.phase-line {
-  flex: 1;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.3);
-  margin: 0 4px;
-  margin-bottom: 16px;
-}
-
-.phase-line.completed {
-  background: #51cf66;
-}
-
-/* Dice Display */
-.game-info-sidebar .dice-container {
+.dice-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 15px;
 }
 
-.game-info-sidebar .dice-container.is-hidden {
+.dice-container.is-hidden {
   display: none;
 }
 
@@ -768,4 +676,57 @@
 
 .log-entry:last-child {
   border-bottom: none;
+}
+
+/* Game Over Overlay */
+.game-over-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.65);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: 20px;
+}
+
+.game-over-overlay.visible {
+  display: flex;
+}
+
+.game-over-content {
+  background: rgba(17, 20, 33, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 32px 40px;
+  text-align: center;
+  color: #f8f9fa;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+#gameOverTitle {
+  font-size: 36px;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.game-over-details {
+  margin-bottom: 24px;
+  font-size: 16px;
+  color: rgba(248, 249, 250, 0.8);
+}
+
+.game-over-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.game-over-actions .btn {
+  min-width: 140px;
 }

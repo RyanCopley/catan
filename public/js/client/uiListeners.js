@@ -170,4 +170,32 @@ export function setupUIListeners() {
       costLegend.classList.toggle('collapsed');
     });
   }
+
+  // Game over overlay controls
+  const spectateBtn = document.getElementById('gameOverSpectateBtn');
+  const lobbyBtn = document.getElementById('gameOverLobbyBtn');
+
+  if (spectateBtn) {
+    spectateBtn.addEventListener('click', () => {
+      this.gameOverOverlayDismissed = true;
+      this.forceGameOverOverlay = false;
+      this.hideGameOverOverlay({ resetDismissed: false, resetForce: false });
+    });
+  }
+
+  if (lobbyBtn) {
+    lobbyBtn.addEventListener('click', () => {
+      this.gameOverOverlayDismissed = true;
+      this.forceGameOverOverlay = false;
+      this.hideGameOverOverlay();
+      if (this.gameId) {
+        this.socket.emit('leaveGame', { gameId: this.gameId });
+      }
+      this.showMenu();
+      this.gameId = null;
+      this.playerId = null;
+      this.gameState = null;
+      this.resetAwardTracking();
+    });
+  }
 }

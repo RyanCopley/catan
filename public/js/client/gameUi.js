@@ -72,6 +72,18 @@ export function updateGameUI() {
         audio.play();
       }
     }
+    const didWin = myPlayer && winner ? winner.id === myPlayer.id : false;
+    const title = myPlayer
+      ? (didWin ? 'YOU WON' : 'YOU LOST')
+      : (winner ? `${winner.name} Won` : 'Game Over');
+    const details = winner
+      ? `Final score: ${winner.victoryPoints} VP${winner.victoryPoints === 1 ? '' : 's'}`
+      : '';
+    this.forceGameOverOverlay = false;
+    this.showGameOverOverlay({ title, details });
+  } else if (!this.forceGameOverOverlay) {
+    this.hideGameOverOverlay();
+    this.gameOverSoundPlayed = false;
   }
 
   // Update scoreboard
@@ -94,9 +106,6 @@ export function updateGameUI() {
       }
     }
   }
-
-  // Update phase timeline
-  this.updatePhaseTimeline();
 
   // Show/hide robber notice
   const robberNotice = document.getElementById('robberNotice');

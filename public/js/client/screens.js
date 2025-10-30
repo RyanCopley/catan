@@ -30,6 +30,9 @@ export function showGame() {
 
   this.renderer.setBoard(this.gameState.board);
   this.updateDiceVisibility();
+
+  this.hideGameOverOverlay();
+  this.gameOverSoundPlayed = false;
 }
 
 export function resetDiceDisplay() {
