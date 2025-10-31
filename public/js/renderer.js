@@ -157,8 +157,20 @@ export default class BoardRenderer {
     const svgClone = baseSvg.cloneNode(true);
     const svgElement = svgClone.documentElement;
 
-    // SVG already includes Montserrat font-family in its styles
-    // No need to add @font-face since Google Fonts is loaded globally
+    // Inject Montserrat Bold font-face into the SVG
+    let styleElement = svgElement.querySelector('style');
+    if (styleElement) {
+      // Add @font-face rule to the existing style element
+      const fontFace = `
+        @font-face {
+          font-family: 'Montserrat-Bold';
+          font-style: normal;
+          font-weight: 700;
+          src: url(https://fonts.gstatic.com/s/montserrat/v25/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');
+        }
+      `;
+      styleElement.textContent = fontFace + '\n' + styleElement.textContent;
+    }
 
     if (number) {
       // Calculate dots (probability dots)
