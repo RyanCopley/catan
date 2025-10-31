@@ -167,66 +167,55 @@ export default class BoardRenderer {
                    number === 4 || number === 10 ? 3 :
                    number === 3 || number === 11 ? 2 : 1;
 
-      // Update the number text - find the text element that contains a digit (not the color code)
-      const textElements = svgElement.querySelectorAll('text');
-      let numberTextElement = null;
-      textElements.forEach(text => {
-        // Find the text that contains a digit (the default "6" in the SVG)
-        if (text.textContent && text.textContent.trim().match(/^\d+$/)) {
-          numberTextElement = text;
+      // Update the number text in the rolled_number layer
+      const rolledNumberLayer = svgElement.querySelector('#rolled_number');
+      if (rolledNumberLayer) {
+        const textElement = rolledNumberLayer.querySelector('text');
+        if (textElement) {
+          textElement.textContent = number.toString();
+          // Make number red for 6 and 8
+          if (number === 6 || number === 8) {
+            textElement.setAttribute('fill', '#ff0000');
+          }
+          // Properly center the text (SVG is 288x288, raised 10px up)
+          textElement.setAttribute('x', '144');
+          textElement.setAttribute('y', '134');
+          textElement.setAttribute('text-anchor', 'middle');
+          textElement.setAttribute('dominant-baseline', 'central');
+          textElement.removeAttribute('transform');
         }
-      });
-
-      if (numberTextElement) {
-        numberTextElement.textContent = number.toString();
-        // Make number red for 6 and 8
-        if (number === 6 || number === 8) {
-          numberTextElement.setAttribute('fill', '#ff0000');
-        }
-        // Center the text properly
-        numberTextElement.setAttribute('text-anchor', 'middle');
-        numberTextElement.setAttribute('dominant-baseline', 'central');
-        // Position at center of the SVG (288x288)
-        numberTextElement.setAttribute('x', '144');
-        numberTextElement.setAttribute('y', '144');
-        numberTextElement.removeAttribute('transform');
-        // Tighten letter spacing
-        numberTextElement.setAttribute('letter-spacing', '-10');
-      } else {
-        console.warn('Could not find number text element');
       }
 
-      // Show/hide dot layers - hide all first
-      const allDotLayers = svgElement.querySelectorAll('[id^="_x"]');
-      allDotLayers.forEach(layer => {
-        layer.setAttribute('display', 'none');
+      // Hide all probability dot layers first
+      const dotNames = ['number_one', 'number_two', 'number_three', 'number_four', 'number_five'];
+      dotNames.forEach(name => {
+        const layer = svgElement.querySelector(`#${name}`);
+        if (layer) {
+          layer.setAttribute('display', 'none');
+        }
       });
 
       // Show only the correct dot layer
-      const dotLayerId = `_x3${dots}_`; // _x31_ for 1, _x32_ for 2, etc.
-      const correctLayer = svgElement.querySelector(`#${dotLayerId}`);
+      const dotLayerName = dotNames[dots - 1]; // dots 1-5 maps to array index 0-4
+      const correctLayer = svgElement.querySelector(`#${dotLayerName}`);
       if (correctLayer) {
-        correctLayer.removeAttribute('style');
+        correctLayer.removeAttribute('display');
         correctLayer.setAttribute('display', 'inline');
-      } else {
-        console.warn(`Could not find dot layer: ${dotLayerId} for number ${number} (${dots} dots)`);
       }
     } else {
-      // Hide all number-related elements for non-numbered hexes (desert)
-      const textElements = svgElement.querySelectorAll('text');
-      textElements.forEach(textElement => {
-        if (textElement.textContent.match(/^\d+$/)) {
-          const parent = textElement.parentElement;
-          if (parent && parent.tagName === 'g') {
-            parent.setAttribute('display', 'none');
-          }
-        }
-      });
+      // Hide rolled_number layer for non-numbered hexes (desert)
+      const rolledNumberLayer = svgElement.querySelector('#rolled_number');
+      if (rolledNumberLayer) {
+        rolledNumberLayer.setAttribute('display', 'none');
+      }
 
-      // Hide all dot layers
-      const allDotLayers = svgElement.querySelectorAll('[id^="_x"]');
-      allDotLayers.forEach(layer => {
-        layer.setAttribute('display', 'none');
+      // Hide all probability dot layers
+      const dotNames = ['number_one', 'number_two', 'number_three', 'number_four', 'number_five'];
+      dotNames.forEach(name => {
+        const layer = svgElement.querySelector(`#${name}`);
+        if (layer) {
+          layer.setAttribute('display', 'none');
+        }
       });
     }
 
