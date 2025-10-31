@@ -803,6 +803,46 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
+  socket.on('chatMessage', async (data: unknown) => {
+    const validation = validateSocketData('chatMessage', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId, message } = validation.data;
+    const game = games.get(gameId);
+    if (!game) return;
+
+    // Find the player sending the message
+    const player = game.players.find(p => p.id === socket.id);
+    if (!player) {
+      // Check if it's a spectator
+      const isSpectator = game.hasSpectator(socket.id);
+      if (!isSpectator) {
+        socket.emit('error', { message: 'You are not in this game' });
+        return;
+      }
+      // Spectators cannot send chat messages
+      socket.emit('error', { message: 'Spectators cannot send chat messages' });
+      return;
+    }
+
+    // Add message to game state
+    game.addChatMessage(socket.id, player.name, message);
+
+    // Save to cache
+    await saveGameToCache(gameId, game);
+
+    // Broadcast the chat message to all players in the game
+    io.to(gameId).emit('chatMessage', {
+      playerId: socket.id,
+      playerName: player.name,
+      message: message,
+      timestamp: Date.now()
+    });
+  });
+
   socket.on('disconnect', async () => {
     console.log('Client disconnected:', socket.id);
 

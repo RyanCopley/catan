@@ -208,4 +208,7 @@ export function setupUIListeners() {
       this.resetAwardTracking();
     });
   }
+
+  // Chat listeners
+  this.setupChatListeners();
 }

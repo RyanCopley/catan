@@ -5,6 +5,10 @@ export function showMenu() {
   document.getElementById('menu').classList.add('active');
   document.getElementById('lobby').classList.remove('active');
   document.getElementById('game').classList.remove('active');
+  // Clear chat messages when leaving game
+  if (this.clearChatMessages) {
+    this.clearChatMessages();
+  }
   // Request open games and history when showing menu
   this.socket.emit('getOpenGames');
   this.socket.emit('getGameHistory');

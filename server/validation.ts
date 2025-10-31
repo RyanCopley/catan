@@ -164,6 +164,11 @@ export const schemas = {
   buildRoadFree: z.object({
     gameId: gameIdSchema,
     edge: edgeInputSchema
+  }),
+
+  chatMessage: z.object({
+    gameId: gameIdSchema,
+    message: z.string().min(1).max(200).trim()
   })
 };
 

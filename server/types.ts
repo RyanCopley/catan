@@ -97,6 +97,13 @@ export interface TradeOffer {
   offeringPlayerStateVersion?: number;
 }
 
+export interface ChatMessage {
+  playerId: string;
+  playerName: string;
+  message: string;
+  timestamp: number;
+}
+
 export interface GameHistory {
   gameId: string;
   winner: {
@@ -127,6 +134,7 @@ export interface GameState {
   setupRoadPlaced: boolean;
   tradeOffers: TradeOffer[];
   developmentCardDeck: DevelopmentCardType[];
+  chatMessages: ChatMessage[];
 }
 
 export interface DiceResult {

@@ -433,4 +433,8 @@ export function setupSocketListeners() {
     showErrorToast(data.message || 'An unexpected error occurred');
     this.renderer.clearBuildMode();
   });
+
+  this.socket.on('chatMessage', (data) => {
+    this.handleChatMessage(data);
+  });
 }
