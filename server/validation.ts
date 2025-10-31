@@ -187,7 +187,7 @@ export function validateSocketData<T extends keyof typeof schemas>(
   if (result.success) {
     return { success: true, data: result.data };
   } else {
-    const errors = result.error.errors.map((err: any) => `${err.path.join('.')}: ${err.message}`).join(', ');
+    const errors = result.error.issues.map((err: any) => `${err.path.join('.')}: ${err.message}`).join(', ');
     return { success: false, error: `Invalid input: ${errors}` };
   }
 }
