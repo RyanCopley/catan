@@ -163,7 +163,7 @@ export default class BoardRenderer {
       // Add @font-face rule to the existing style element
       const fontFace = `
         @font-face {
-          font-family: 'Montserrat-Bold';
+          font-family: 'Montserrat';
           font-style: normal;
           font-weight: 700;
           src: url(https://fonts.gstatic.com/s/montserrat/v25/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');
