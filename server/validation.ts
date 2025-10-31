@@ -169,6 +169,10 @@ export const schemas = {
   chatMessage: z.object({
     gameId: gameIdSchema,
     message: z.string().min(1).max(200).trim()
+  }),
+
+  forfeit: z.object({
+    gameId: gameIdSchema
   })
 };
 

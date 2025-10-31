@@ -473,6 +473,46 @@ export class Game {
     return tradeWithBank(player, this.board, givingResource, receivingResource, amount);
   }
 
+  forfeit(playerId: string): boolean {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    // Can only forfeit during setup or playing phases
+    if (this.phase !== 'setup' && this.phase !== 'playing') return false;
+
+    // Mark player as forfeited
+    player.forfeited = true;
+
+    // If it's currently this player's turn, advance to next non-forfeited player
+    if (this.players[this.currentPlayerIndex].id === playerId) {
+      this.advanceToNextActivePlayer();
+    }
+
+    // Check if only one active player remains (others forfeited/disconnected)
+    const activePlayers = this.players.filter(p => !p.forfeited);
+    if (activePlayers.length === 1) {
+      this.phase = 'finished';
+    }
+
+    return true;
+  }
+
+  private advanceToNextActivePlayer(): void {
+    if (this.phase === 'setup') {
+      // During setup, skip forfeited players
+      this.handleSetupTurn();
+    } else {
+      // During playing phase, find next non-forfeited player
+      const startIndex = this.currentPlayerIndex;
+      do {
+        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+      } while (this.players[this.currentPlayerIndex].forfeited && this.currentPlayerIndex !== startIndex);
+
+      this.turnPhase = 'roll';
+      this.diceRoll = null;
+    }
+  }
+
   endTurn(playerId: string): boolean {
     if (this.players[this.currentPlayerIndex].id !== playerId) return false;
 
@@ -484,7 +524,11 @@ export class Game {
       moveNewCardsToPlayable(player);
       this.devCardPlayedThisTurn = false;
 
-      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+      // Find next non-forfeited player
+      do {
+        this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+      } while (this.players[this.currentPlayerIndex].forfeited);
+
       this.turnPhase = 'roll';
       this.diceRoll = null;
     }
@@ -504,15 +548,46 @@ export class Game {
     if (this.setupRound === 1) {
       if (this.currentPlayerIndex < this.players.length - 1) {
         this.currentPlayerIndex++;
+        // Skip forfeited players
+        while (this.currentPlayerIndex < this.players.length && this.players[this.currentPlayerIndex].forfeited) {
+          this.currentPlayerIndex++;
+        }
+        // If we've gone past the end, move to round 2
+        if (this.currentPlayerIndex >= this.players.length) {
+          this.setupRound = 2;
+          this.currentPlayerIndex = this.players.length - 1;
+          // Find last non-forfeited player
+          while (this.currentPlayerIndex >= 0 && this.players[this.currentPlayerIndex].forfeited) {
+            this.currentPlayerIndex--;
+          }
+        }
       } else {
         this.setupRound = 2;
       }
     } else if (this.setupRound === 2) {
       if (this.currentPlayerIndex > 0) {
         this.currentPlayerIndex--;
+        // Skip forfeited players
+        while (this.currentPlayerIndex >= 0 && this.players[this.currentPlayerIndex].forfeited) {
+          this.currentPlayerIndex--;
+        }
+        // If we've gone past the beginning, transition to playing phase
+        if (this.currentPlayerIndex < 0) {
+          this.phase = 'playing';
+          this.currentPlayerIndex = 0;
+          // Find first non-forfeited player
+          while (this.currentPlayerIndex < this.players.length && this.players[this.currentPlayerIndex].forfeited) {
+            this.currentPlayerIndex++;
+          }
+          this.turnPhase = 'roll';
+        }
       } else {
         this.phase = 'playing';
         this.currentPlayerIndex = 0;
+        // Find first non-forfeited player
+        while (this.currentPlayerIndex < this.players.length && this.players[this.currentPlayerIndex].forfeited) {
+          this.currentPlayerIndex++;
+        }
         this.turnPhase = 'roll';
       }
     }

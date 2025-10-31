@@ -803,6 +803,31 @@ export function setupSocketHandlers(io: Server, socket: Socket, games: Map<strin
     }
   });
 
+  socket.on('forfeit', async (data: unknown) => {
+    const validation = validateSocketData('forfeit', data);
+    if (!validation.success) {
+      socket.emit('error', { message: validation.error });
+      return;
+    }
+
+    const { gameId } = validation.data;
+    const game = games.get(gameId);
+    if (!game) return;
+
+    const success = game.forfeit(socket.id);
+    if (success) {
+      game.updateActivity();
+      const player = game.players.find(p => p.id === socket.id);
+      await saveGameToCache(gameId, game);
+      broadcastGameState(io, gameId, game, 'playerForfeited', {
+        playerName: player?.name,
+        playerId: socket.id
+      });
+    } else {
+      socket.emit('error', { message: 'Cannot forfeit at this time' });
+    }
+  });
+
   socket.on('chatMessage', async (data: unknown) => {
     const validation = validateSocketData('chatMessage', data);
     if (!validation.success) {

@@ -83,6 +83,7 @@ export interface Player {
   ready?: boolean;
   spectator?: boolean;
   stateVersion?: number;
+  forfeited?: boolean;
 }
 
 export interface TradeOffer {

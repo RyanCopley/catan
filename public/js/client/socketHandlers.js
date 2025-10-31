@@ -434,6 +434,40 @@ export function setupSocketListeners() {
     this.renderer.clearBuildMode();
   });
 
+  this.socket.on('playerForfeited', (data) => {
+    this.gameState = data.game;
+
+    // If the forfeiting player is the current user, redirect to main menu
+    if (data.playerId === this.playerId) {
+      showInfoToast('You have forfeited the game. Returning to main menu...');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+      return;
+    }
+
+    // For other players, just update the UI
+    this.updateGameUI();
+    const player = this.gameState.players.find(p => p.id === data.playerId);
+    if (player) {
+      this.renderer.addLogMessage(`${data.playerName} has forfeited the game`);
+      showInfoToast(`${data.playerName} has forfeited the game`);
+    }
+
+    // Check if the game ended (only one player remaining)
+    if (this.gameState.phase === 'finished') {
+      const activePlayers = this.gameState.players.filter(p => !p.forfeited);
+      if (activePlayers.length === 1 && activePlayers[0].id === this.playerId) {
+        // Current player is the only one left, they win
+        this.showGameOverOverlay({
+          title: 'You Win!',
+          details: 'All other players have forfeited.',
+          force: true
+        });
+      }
+    }
+  });
+
   this.socket.on('chatMessage', (data) => {
     this.handleChatMessage(data);
   });

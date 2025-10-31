@@ -56,6 +56,7 @@ export function censorGameState(state: GameState, requestingPlayerId: string | n
       disconnected: player.disconnected,
       ready: player.ready,
       spectator: player.spectator,
+      forfeited: player.forfeited,
       // Add count fields for UI
       resourceCount: getTotalResources(player.resources),
       developmentCardCount: player.developmentCards.length,
@@ -99,6 +100,7 @@ export function censorPlayerForLobby(player: Player): Partial<Player> {
     color: player.color,
     ready: player.ready,
     disconnected: player.disconnected,
-    spectator: player.spectator
+    spectator: player.spectator,
+    forfeited: player.forfeited
   };
 }

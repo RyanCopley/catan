@@ -1,4 +1,6 @@
 // Auto-generated split from client.js
+import { showConfirmToast } from '../modules/toast.js';
+
 export function updateScoreboard() {
   if (!this.gameState || !this.renderer) return;
 
@@ -29,7 +31,12 @@ export function updateScoreboard() {
 
     const nameDiv = document.createElement('div');
     nameDiv.className = 'scoreboard-player-name';
-    nameDiv.textContent = (player.id === this.playerId ? ' You' : player.name);
+    nameDiv.style.display = 'flex';
+    nameDiv.style.alignItems = 'center';
+    nameDiv.style.gap = '6px';
+
+    const nameText = document.createElement('span');
+    nameText.textContent = (player.id === this.playerId ? ' You' : player.name);
 
     // Add disconnect indicator if player is disconnected
     if (player.disconnected) {
@@ -39,7 +46,50 @@ export function updateScoreboard() {
       disconnectIndicator.style.color = '#ff6b6b';
       disconnectIndicator.style.fontSize = '0.9em';
       disconnectIndicator.style.fontWeight = 'normal';
-      nameDiv.appendChild(disconnectIndicator);
+      nameText.appendChild(disconnectIndicator);
+    }
+
+    // Add forfeited indicator if player has forfeited
+    if (player.forfeited) {
+      const forfeitedIndicator = document.createElement('span');
+      forfeitedIndicator.className = 'forfeited-indicator';
+      forfeitedIndicator.textContent = ' (Forfeited)';
+      forfeitedIndicator.style.color = '#999';
+      forfeitedIndicator.style.fontSize = '0.9em';
+      forfeitedIndicator.style.fontWeight = 'normal';
+      nameText.appendChild(forfeitedIndicator);
+    }
+
+    nameDiv.appendChild(nameText);
+
+    // Add forfeit button for current player if they haven't forfeited yet
+    if (player.id === this.playerId && !player.forfeited && (this.gameState.phase === 'setup' || this.gameState.phase === 'playing')) {
+      const forfeitBtn = document.createElement('button');
+      forfeitBtn.className = 'forfeit-icon-btn';
+      forfeitBtn.innerHTML = '🏳️';
+      forfeitBtn.title = 'Forfeit game';
+      forfeitBtn.style.cssText = 'background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0; margin: 0; opacity: 0.6; transition: opacity 0.2s;';
+      forfeitBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const confirmed = await showConfirmToast(
+          'Are you sure you want to forfeit this game? This cannot be undone.',
+          {
+            confirmText: 'Forfeit',
+            cancelText: 'Cancel',
+            type: 'warning'
+          }
+        );
+        if (confirmed) {
+          this.socket.emit('forfeit', { gameId: this.gameId });
+        }
+      };
+      forfeitBtn.onmouseover = () => {
+        forfeitBtn.style.opacity = '1';
+      };
+      forfeitBtn.onmouseout = () => {
+        forfeitBtn.style.opacity = '0.6';
+      };
+      nameDiv.appendChild(forfeitBtn);
     }
 
     const badgesDiv = document.createElement('div');
