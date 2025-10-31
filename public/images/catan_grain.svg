@@ -6,12 +6,13 @@
 	.st0{fill:#683F1F;}
 	.st1{fill:#70451D;}
 	.st2{fill:#E4AF44;stroke:#A07D3F;stroke-width:0.5937;stroke-miterlimit:10;}
-	.st3{clip-path:url(#SVGID_00000078726486918081280960000016103125332669287050_);}
+	.st3{clip-path:url(#SVGID_00000024707632741543995810000009157835653101912740_);}
 	.st4{fill:#B6783A;}
 	.st5{fill:#A24D26;}
 	.st6{fill:#FFFFFF;}
-	.st7{font-family:'Montserrat', sans-serif; font-weight: 700;}
-	.st8{font-size:86.7426px;}
+	.st7{font-family:'Montserrat-Bold';}
+	.st8{font-size:69.3941px;}
+	.st9{letter-spacing:-6;}
 </style>
 <g id="Layer_1">
 	<g>
@@ -27,10 +28,10 @@
 					<defs>
 						<polygon id="SVGID_1_" points="209.1,32.5 79,32.5 14.1,145 79,257.5 209.1,257.5 274,145 						"/>
 					</defs>
-					<clipPath id="SVGID_00000176033335822938499410000007014705344085868711_">
+					<clipPath id="SVGID_00000140722280501921143230000007262410160984797104_">
 						<use xlink:href="#SVGID_1_"  style="overflow:visible;"/>
 					</clipPath>
-					<g style="clip-path:url(#SVGID_00000176033335822938499410000007014705344085868711_);">
+					<g style="clip-path:url(#SVGID_00000140722280501921143230000007262410160984797104_);">
 						<g>
 							<polygon class="st4" points="184.4,126.3 142.4,70.3 82.2,51.7 129.9,115.3 							"/>
 							<polygon class="st4" points="44.3,104.4 -47,85.9 13.4,172.6 100.3,179.1 							"/>
@@ -55,56 +56,57 @@
 			</g>
 		</g>
 	</g>
-	<g style="transform:scale(0.85) translate(30px,30px);">
-		<path class="st5" d="M195.8,211H92.2c-8.1,0-14.8-6.6-14.8-14.8V96c0-8.1,6.6-14.8,14.8-14.8h103.7c8.1,0,14.8,6.6,14.8,14.8
-			v100.2C210.6,204.4,204,211,195.8,211z"/>
-		<path class="st6" d="M195.8,206.7H92.2c-8.1,0-14.8-6.6-14.8-14.8V91.8C77.4,83.6,84,77,92.2,77h103.7c8.1,0,14.8,6.6,14.8,14.8
-			V192C210.6,200.1,204,206.7,195.8,206.7z"/>
-					<g style="transform: translate(-8px,-8px)">
-
-		<text transform="matrix(1 0 0 1 114.2673 158.6904)" class="st1 st7 st8">6</text>
-		</g>
+	<g>
+		<path class="st5" d="M185.5,197.6h-83c-6.5,0-11.8-5.3-11.8-11.8v-80.2c0-6.5,5.3-11.8,11.8-11.8h83c6.5,0,11.8,5.3,11.8,11.8
+			v80.2C197.3,192.3,192,197.6,185.5,197.6z"/>
+		<path class="st6" d="M185.5,194.2h-83c-6.5,0-11.8-5.3-11.8-11.8v-80.2c0-6.5,5.3-11.8,11.8-11.8h83c6.5,0,11.8,5.3,11.8,11.8
+			v80.2C197.3,188.9,192,194.2,185.5,194.2z"/>
 	</g>
 </g>
-<g id="_x35_">
+<g id="rolled_number">
+	<g>
+		<text transform="matrix(1 0 0 1 122.5923 155.752)" class="st1 st7 st8 st9">6</text>
+	</g>
+</g>
+<g id="number_five">
 	<g>
 		<g>
-			<circle class="st1" cx="108.9" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="126.5" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="144" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="161.5" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="179.1" cy="186.8" r="5.7"/>
+			<circle class="st1" cx="116" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="130" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="144" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="158" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="172" cy="178.2" r="4.5"/>
 		</g>
 	</g>
 </g>
-<g id="_x34_">
+<g id="number_four">
 	<g>
 		<g>
-			<circle class="st1" cx="117.7" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="135.2" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="152.8" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="170.3" cy="186.8" r="5.7"/>
+			<circle class="st1" cx="123" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="137" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="151" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="165" cy="178.2" r="4.5"/>
 		</g>
 	</g>
 </g>
-<g id="_x33_">
+<g id="number_three">
 	<g>
 		<g>
-			<circle class="st1" cx="126.5" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="144" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="161.5" cy="186.8" r="5.7"/>
+			<circle class="st1" cx="130" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="144" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="158" cy="178.2" r="4.5"/>
 		</g>
 	</g>
 </g>
-<g id="_x32_">
+<g id="number_two">
 	<g>
 		<g>
-			<circle class="st1" cx="135.2" cy="186.8" r="5.7"/>
-			<circle class="st1" cx="152.8" cy="186.8" r="5.7"/>
+			<circle class="st1" cx="137" cy="178.2" r="4.5"/>
+			<circle class="st1" cx="151" cy="178.2" r="4.5"/>
 		</g>
 	</g>
 </g>
-<g id="_x31_">
-	<circle class="st1" cx="144" cy="186.8" r="5.7"/>
+<g id="number_one">
+	<circle class="st1" cx="144" cy="178.2" r="4.5"/>
 </g>
 </svg>
