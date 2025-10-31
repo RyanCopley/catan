@@ -1,0 +1,23 @@
+{
+  "name": "catan-ai",
+  "version": "1.0.0",
+  "description": "Neural network AI player for Catan",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "train": "node dist/main.js",
+    "dev": "ts-node main.ts",
+    "play": "npm run build && node dist/play-game.js",
+    "play:dev": "ts-node play-game.ts",
+    "find-best-model": "ts-node find-best-model.ts"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "socket.io-client": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+}
