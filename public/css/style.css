@@ -452,9 +452,8 @@ input[type="text"]:focus {
 .dice-panel {
   background: white;
   border-radius: 10px;
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  padding: 10px 12px;
+  margin-bottom: 10px;
 }
 
 .dice-container {
@@ -470,7 +469,7 @@ input[type="text"]:focus {
 .dice-display {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .die {
@@ -785,7 +784,7 @@ input[type="text"]:focus {
 }
 
 .actions {
-  margin-bottom: 30px;
+  margin-bottom: 16px;
 }
 
 .btn-action {
@@ -800,6 +799,7 @@ input[type="text"]:focus {
 
 .btn-half {
   width: 49%;
+  margin-bottom: 4px;
 }
 
 .players-status {
@@ -1363,17 +1363,20 @@ input[type="text"]:focus {
   border-color: #ffa8a8;
 }
 
-/* Flashy and shiny effect when not disabled */
-#rollDiceBtn:not(:disabled) {
+/* Turn Action Button - shared Roll/End states */
+#turnActionBtn {
   position: relative;
   overflow: hidden; /* Keep pseudo-elements inside */
   contain: paint;   /* Minor performance boost */
-  color: #222; /* Dark text for better contrast */
   z-index: 0; /* Establish stacking context */
 }
 
-/* Pulse animation layer (under text, above background) */
-#rollDiceBtn:not(:disabled)::before {
+/* Roll state visuals */
+#turnActionBtn.turn-action-roll:not(:disabled) {
+  color: #222; /* Dark text for better contrast */
+}
+
+#turnActionBtn.turn-action-roll:not(:disabled)::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -1383,8 +1386,7 @@ input[type="text"]:focus {
   z-index: -1; /* Place behind text */
 }
 
-/* Shiny sweeping effect (smooth and seamless) */
-#rollDiceBtn:not(:disabled)::after {
+#turnActionBtn.turn-action-roll:not(:disabled)::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1403,9 +1405,20 @@ input[type="text"]:focus {
   z-index: 1; /* Over text */
 }
 
-/* Hover pop effect */
-#rollDiceBtn:not(:disabled):hover {
+#turnActionBtn.turn-action-roll:not(:disabled):hover {
   transform: scale(1.08);
+}
+
+/* End turn state visuals */
+#turnActionBtn.turn-action-end:not(:disabled) {
+  background: #ff4d4f;
+  color: #fff;
+  box-shadow: 0 0 15px rgba(255, 77, 79, 0.4);
+}
+
+#turnActionBtn.turn-action-end:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 77, 79, 0.35);
 }
 
 /* Pulse animation for the yellow glow */

@@ -7,6 +7,7 @@ import * as screens from './screens.js';
 import * as lobby from './lobby.js';
 import * as awards from './awards.js';
 import * as devCards from './devCards.js';
+import * as chat from './chat.js';
 import { updateGameUI } from './gameUi.js';
 import { updateScoreboard } from './scoreboard.js';
 import { showConnectionStatus } from './connection.js';
@@ -56,6 +57,7 @@ Object.assign(
   lobby,
   awards,
   devCards,
+  chat,
   {
     updateGameUI,
     updateScoreboard,

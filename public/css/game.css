@@ -81,9 +81,8 @@
 .dice-panel {
   background: white;
   border-radius: 10px;
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  padding: 10px 12px;
+  margin-bottom: 10px;
 }
 
 .dice-container {
@@ -99,7 +98,7 @@
 .dice-display {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .die {
@@ -305,7 +304,7 @@
 
 /* Actions Panel */
 .actions {
-  margin-bottom: 30px;
+  margin-bottom: 16px;
 }
 
 /* Player Info */
@@ -628,6 +627,104 @@
 .dev-card.yearOfPlenty {
   background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
   color: #333;
+}
+
+/* Chat Section */
+.chat-section {
+  margin: 20px 0;
+  padding: 15px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  max-height: 300px;
+}
+
+.chat-section h3 {
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 5px;
+  min-height: 150px;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.no-messages {
+  color: #999;
+  font-style: italic;
+  text-align: center;
+  margin: auto;
+}
+
+.chat-message {
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: white;
+  border-left: 3px solid #667eea;
+  word-wrap: break-word;
+  animation: fadeIn 0.2s ease-in;
+}
+
+.chat-message-author {
+  font-weight: bold;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.chat-message-text {
+  font-size: 13px;
+  color: #000;
+}
+
+.chat-message.own-message {
+  border-left-color: #4dabf7;
+  background: #e7f5ff;
+}
+
+.chat-input-container {
+  display: flex;
+  gap: 8px;
+}
+
+#chatInput {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 5px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+#chatInput:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+#sendChatBtn {
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Message Log */
