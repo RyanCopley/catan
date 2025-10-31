@@ -136,10 +136,25 @@ export default class BoardRenderer {
   }
 
   async loadFontAsBase64() {
-    // Montserrat is loaded via Google Fonts in index.html
-    // No need to load font as base64 anymore
-    this.fontBase64 = null;
-    return null;
+    try {
+      // Fetch Montserrat Bold font from Google Fonts
+      const fontUrl = 'https://fonts.gstatic.com/s/montserrat/v25/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2';
+      const response = await fetch(fontUrl);
+      const blob = await response.blob();
+
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          this.fontBase64 = reader.result;
+          resolve(this.fontBase64);
+        };
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Failed to load Montserrat font:', error);
+      this.fontBase64 = null;
+      return null;
+    }
   }
 
   getHexImage(terrain, number) {
@@ -157,16 +172,16 @@ export default class BoardRenderer {
     const svgClone = baseSvg.cloneNode(true);
     const svgElement = svgClone.documentElement;
 
-    // Inject Montserrat Bold font-face into the SVG
+    // Inject Montserrat Bold font-face into the SVG with embedded base64 font
     let styleElement = svgElement.querySelector('style');
-    if (styleElement) {
-      // Add @font-face rule to the existing style element
+    if (styleElement && this.fontBase64) {
+      // Add @font-face rule with embedded font data
       const fontFace = `
         @font-face {
           font-family: 'Montserrat';
           font-style: normal;
           font-weight: 700;
-          src: url(https://fonts.gstatic.com/s/montserrat/v25/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');
+          src: url(${this.fontBase64}) format('woff2');
         }
       `;
       styleElement.textContent = fontFace + '\n' + styleElement.textContent;
