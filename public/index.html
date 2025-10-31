@@ -136,7 +136,7 @@
 
           <div class="actions">
             <h3>Actions</h3>
-            <button id="rollDiceBtn" class="btn btn-action" disabled>
+            <button id="turnActionBtn" class="btn btn-action" disabled>
               Roll Dice
             </button>
             <button id="buildSettlementBtn" class="btn btn-action btn-half" disabled>
@@ -156,9 +156,6 @@
             </button>
             <button id="bankTradeBtn" class="btn btn-action btn-half" disabled>
               Trade with Bank
-            </button>
-            <button id="endTurnBtn" class="btn btn-action" disabled>
-              End Turn
             </button>
           </div>
 
@@ -188,7 +185,7 @@
                 </div>
               </div>
             </div>
-            <div class="cost-legend" id="costLegend">
+            <div class="cost-legend collapsed" id="costLegend">
               <div class="cost-legend-header" id="costLegendToggle">
                 <span>Build &amp; Card Costs</span>
                 <span class="toggle-icon">▲</span>
@@ -236,7 +233,7 @@
             </div>
           </div>
 
-          <div class="development-cards">
+          <div id="developmentCardsSection" class="development-cards">
             <h3>Development Cards (<span id="devCardCount">0</span>)</h3>
             <div id="developmentCardsList" class="dev-cards-list">
               <p class="no-cards">No development cards yet</p>

@@ -62,9 +62,18 @@ export function setupUIListeners() {
   });
 
   // Game screen
-  document.getElementById('rollDiceBtn').addEventListener('click', () => {
-    this.socket.emit('rollDice', { gameId: this.gameId });
-  });
+  const turnActionBtn = document.getElementById('turnActionBtn');
+  if (turnActionBtn) {
+    turnActionBtn.addEventListener('click', () => {
+      const action = turnActionBtn.dataset.action;
+      if (action === 'roll') {
+        this.socket.emit('rollDice', { gameId: this.gameId });
+      } else if (action === 'end') {
+        this.socket.emit('endTurn', { gameId: this.gameId });
+        this.renderer.clearBuildMode();
+      }
+    });
+  }
 
   document.getElementById('buildSettlementBtn').addEventListener('click', () => {
     this.renderer.setBuildMode('settlement');
@@ -80,11 +89,6 @@ export function setupUIListeners() {
 
   document.getElementById('buyDevCardBtn').addEventListener('click', () => {
     this.socket.emit('buyDevelopmentCard', { gameId: this.gameId });
-  });
-
-  document.getElementById('endTurnBtn').addEventListener('click', () => {
-    this.socket.emit('endTurn', { gameId: this.gameId });
-    this.renderer.clearBuildMode();
   });
 
   document.getElementById('tradeBtn').addEventListener('click', () => {
