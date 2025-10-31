@@ -105,6 +105,11 @@ export function updateGameUI() {
   // Update trade offers
   this.updateTradeOffers();
 
+  // Load chat history
+  if (this.loadChatHistory) {
+    this.loadChatHistory();
+  }
+
   // Check if we should show robber notice
   let showRobberNotice = false;
   if (this.gameState.phase === 'playing' && this.gameState.turnPhase === 'robber') {

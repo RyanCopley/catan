@@ -538,7 +538,7 @@ export default class BoardRenderer {
       });
     }
 
-    // Draw green borders for rolled hexes (before roads/buildings)
+    // Draw green borders for rolled hexes (before roads/buildings but thick enough to show around them)
     if (this.currentRoll) {
       this.board.hexes.forEach(hex => {
         if (hex.number === this.currentRoll) {
@@ -549,7 +549,7 @@ export default class BoardRenderer {
           const centerY = this.offsetY + y;
 
           this.ctx.strokeStyle = '#00ff00';
-          this.ctx.lineWidth = 4;
+          this.ctx.lineWidth = 10;
           this.ctx.beginPath();
           for (let i = 0; i < 6; i++) {
             const angle = Math.PI / 3 * i;
@@ -567,12 +567,12 @@ export default class BoardRenderer {
       });
     }
 
-    // Draw edges (roads) - on top of green borders
+    // Draw edges (roads)
     this.board.edges.forEach(edge => {
       this.drawEdge(edge);
     });
 
-    // Draw vertices (settlements/cities) - on top of green borders
+    // Draw vertices (settlements/cities)
     this.board.vertices.forEach(vertex => {
       this.drawVertex(vertex);
     });

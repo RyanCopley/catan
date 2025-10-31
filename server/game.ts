@@ -1,6 +1,6 @@
 import {
   GameState, Board, Player, DiceResult, Coordinate, Edge, HexCoordinate,
-  ResourceType, GamePhase, TurnPhase, Resources, GameHistory
+  ResourceType, GamePhase, TurnPhase, Resources, GameHistory, ChatMessage
 } from './types';
 import { generateBoard } from './boardGenerator';
 import { createPlayer, getVictoryPoints } from './playerManager';
@@ -29,6 +29,7 @@ export class Game {
   devCardPlayedThisTurn: boolean;
   startedAt: number | null;
   lastActivityAt: number;
+  chatMessages: ChatMessage[];
 
   private tradeManager: TradeManager;
   private devCardManager: DevelopmentCardManager;
@@ -49,6 +50,7 @@ export class Game {
     this.devCardPlayedThisTurn = false;
     this.startedAt = null;
     this.lastActivityAt = Date.now();
+    this.chatMessages = [];
 
     this.tradeManager = new TradeManager();
     this.devCardManager = new DevelopmentCardManager();
@@ -541,7 +543,8 @@ export class Game {
       setupSettlementPlaced: this.setupSettlementPlaced,
       setupRoadPlaced: this.setupRoadPlaced,
       tradeOffers: this.tradeManager.getTradeOffers(),
-      developmentCardDeck: this.devCardManager.getDeck()
+      developmentCardDeck: this.devCardManager.getDeck(),
+      chatMessages: this.chatMessages
     };
   }
 
@@ -572,6 +575,21 @@ export class Game {
     this.lastActivityAt = Date.now();
   }
 
+  addChatMessage(playerId: string, playerName: string, message: string): void {
+    const chatMessage: ChatMessage = {
+      playerId,
+      playerName,
+      message,
+      timestamp: Date.now()
+    };
+    this.chatMessages.push(chatMessage);
+
+    // Limit to last 100 messages to prevent excessive memory usage
+    if (this.chatMessages.length > 100) {
+      this.chatMessages = this.chatMessages.slice(-100);
+    }
+  }
+
   restoreState(state: GameState): void {
     this.players = state.players;
     this.board = state.board;
@@ -583,6 +601,7 @@ export class Game {
     this.setupRound = state.setupRound;
     this.setupSettlementPlaced = state.setupSettlementPlaced;
     this.setupRoadPlaced = state.setupRoadPlaced;
+    this.chatMessages = state.chatMessages || [];
 
     // Restore trade offers
     if (state.tradeOffers) {

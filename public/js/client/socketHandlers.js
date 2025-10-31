@@ -105,6 +105,15 @@ export function setupSocketListeners() {
       this.showGame();
       this.updateGameUI();
 
+      // Restore dice roll highlight after renderer is created (only if dice have been rolled this turn)
+      if (this.gameState.turnPhase !== 'roll') {
+        if (lastDiceResult) {
+          this.renderer.setRoll(lastDiceResult.total);
+        } else if (this.gameState.diceRoll !== null) {
+          this.renderer.setRoll(this.gameState.diceRoll);
+        }
+      }
+
       // Check if we need to show discard modal after reconnecting
       const myPlayer = this.gameState.players.find(p => p.id === this.playerId);
       if (myPlayer && myPlayer.mustDiscard > 0) {
@@ -355,6 +364,8 @@ export function setupSocketListeners() {
   this.socket.on('turnEnded', (data) => {
     this.gameState = data.game;
     this.endKnightMode(); // Clear knight banner when turn ends
+    this.hasRolledDice = false;
+    this.renderer.setRoll(null); // Clear the green hex highlight for new turn
     this.updateGameUI();
     const currentPlayer = this.gameState.players[this.gameState.currentPlayerIndex];
 
@@ -421,5 +432,9 @@ export function setupSocketListeners() {
   this.socket.on('error', (data) => {
     showErrorToast(data.message || 'An unexpected error occurred');
     this.renderer.clearBuildMode();
+  });
+
+  this.socket.on('chatMessage', (data) => {
+    this.handleChatMessage(data);
   });
 }
