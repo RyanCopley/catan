@@ -29,7 +29,7 @@ export default class BoardRenderer {
       hills: '#CD853F',
       mountains: '#808080',
       desert: '#DEB887',
-      water: '#4a90a4'
+      water: '#000000'
     };
 
     this.playerColors = {

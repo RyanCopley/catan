@@ -20,11 +20,13 @@
 }
 
 .menu-title {
-  color: white;
+  color: #f4e9d8;
   font-size: 64px;
   margin-bottom: 40px;
-  text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
   text-align: center;
+  font-weight: 800;
+  letter-spacing: 2px;
 }
 
 .menu-cards {
@@ -48,9 +50,10 @@
 }
 
 .open-games-section h3 {
-  color: #667eea;
+  color: #2c3e50;
   margin-bottom: 10px;
   font-size: 18px;
+  font-weight: 700;
 }
 
 .open-games-list {
@@ -172,32 +175,37 @@
 }
 
 .lobby-container {
-  background: white;
+  background: #f8f9fa;
   padding: 40px;
-  border-radius: 15px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
   min-width: 500px;
+  border: 2px solid #34495e;
 }
 
 .lobby-container h2 {
-  color: #667eea;
+  color: #2c3e50;
   margin-bottom: 20px;
   text-align: center;
+  font-weight: 700;
 }
 
 .game-id-display {
-  background: #f0f0f0;
+  background: #ecf0f1;
   padding: 15px;
   border-radius: 8px;
   text-align: center;
   font-size: 20px;
   font-weight: bold;
   margin-bottom: 20px;
+  border: 2px solid #bdc3c7;
 }
 
 .game-id-display span {
-  color: #667eea;
+  color: #e74c3c;
   font-size: 28px;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
 }
 
 .password-section {
