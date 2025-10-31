@@ -48,18 +48,22 @@
 
 .btn-half {
   width: 49%;
+  margin-bottom: 4px;
 }
 
-/* Special Roll Dice Button Animation */
-#rollDiceBtn:not(:disabled) {
+/* Turn Action Button States */
+#turnActionBtn {
   position: relative;
   overflow: hidden;
   contain: paint;
-  color: #222;
   z-index: 0;
 }
 
-#rollDiceBtn:not(:disabled)::before {
+#turnActionBtn.turn-action-roll:not(:disabled) {
+  color: #222;
+}
+
+#turnActionBtn.turn-action-roll:not(:disabled)::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -69,7 +73,7 @@
   z-index: -1;
 }
 
-#rollDiceBtn:not(:disabled)::after {
+#turnActionBtn.turn-action-roll:not(:disabled)::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -88,8 +92,19 @@
   z-index: 1;
 }
 
-#rollDiceBtn:not(:disabled):hover {
+#turnActionBtn.turn-action-roll:not(:disabled):hover {
   transform: scale(1.08);
+}
+
+#turnActionBtn.turn-action-end:not(:disabled) {
+  background: #ff4d4f;
+  color: #fff;
+  box-shadow: 0 0 15px rgba(255, 77, 79, 0.4);
+}
+
+#turnActionBtn.turn-action-end:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 77, 79, 0.35);
 }
 
 @keyframes pulseYellow {

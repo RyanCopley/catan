@@ -213,13 +213,44 @@ export function updateGameUI() {
     canEndTurn = false;
   }
 
-  document.getElementById('rollDiceBtn').disabled = !canRoll || this.isSpectator;
+  const turnActionBtn = document.getElementById('turnActionBtn');
+  if (turnActionBtn) {
+    let turnActionType = 'roll';
+
+    if (isSetup || this.gameState.turnPhase !== 'roll') {
+      turnActionType = 'end';
+    }
+
+    const turnActionLabel = turnActionType === 'roll' ? 'Roll Dice' : 'End Turn';
+
+    let turnActionEnabled = false;
+    if (turnActionType === 'roll') {
+      turnActionEnabled = canRoll;
+    } else if (isSetup) {
+      turnActionEnabled = isMyTurn && !this.isSpectator && canEndTurn;
+    } else {
+      turnActionEnabled = canEndTurn && isMyTurn && !this.isSpectator && !isFinished;
+    }
+
+    turnActionBtn.textContent = turnActionLabel;
+    turnActionBtn.disabled = !turnActionEnabled;
+    turnActionBtn.dataset.action = turnActionType;
+    turnActionBtn.classList.remove('turn-action-roll', 'turn-action-end');
+
+    if (turnActionEnabled) {
+      if (turnActionType === 'roll') {
+        turnActionBtn.classList.add('turn-action-roll');
+      } else {
+        turnActionBtn.classList.add('turn-action-end');
+      }
+    }
+  }
+
   document.getElementById('buildSettlementBtn').disabled = !canBuildSettlement || this.isSpectator;
   document.getElementById('buildRoadBtn').disabled = !canBuildRoad || this.isSpectator;
   document.getElementById('buildCityBtn').disabled = !canBuildCity || this.isSpectator;
   document.getElementById('buyDevCardBtn').disabled = !canBuyDevCard || this.isSpectator;
   document.getElementById('tradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build') || this.isSpectator;
   document.getElementById('bankTradeBtn').disabled = !(isMyTurn && !isSetup && this.gameState.turnPhase === 'build') || this.isSpectator;
-  document.getElementById('endTurnBtn').disabled = !canEndTurn || this.isSpectator;
 
 }

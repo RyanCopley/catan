@@ -23,13 +23,15 @@ export function updateDevelopmentCardsDisplay(player) {
   document.getElementById('devCardCount').textContent = totalCards;
 
   const cardsList = document.getElementById('developmentCardsList');
+  const cardsSection = document.getElementById('developmentCardsSection');
+
   cardsList.innerHTML = '';
 
+  if (cardsSection) {
+    cardsSection.style.display = totalCards === 0 ? 'none' : '';
+  }
+
   if (totalCards === 0) {
-    const noCards = document.createElement('p');
-    noCards.className = 'no-cards';
-    noCards.textContent = 'No development cards yet';
-    cardsList.appendChild(noCards);
     return;
   }
 
