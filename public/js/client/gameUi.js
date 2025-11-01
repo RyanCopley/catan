@@ -217,8 +217,12 @@ export function updateGameUI() {
   if (turnActionBtn) {
     let turnActionType = 'roll';
 
-    if (isSetup || this.gameState.turnPhase !== 'roll') {
+    // Determine if we should show Roll or End Turn button
+    if (isSetup || this.gameState.turnPhase === 'build') {
       turnActionType = 'end';
+    } else if (this.gameState.turnPhase === 'robber') {
+      // During robber phase, keep it as roll (disabled) - player needs to handle robber first
+      turnActionType = 'roll';
     }
 
     const turnActionLabel = turnActionType === 'roll' ? 'Roll Dice' : 'End Turn';
