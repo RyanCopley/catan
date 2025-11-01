@@ -520,6 +520,9 @@ export class Game {
       if (!this.setupSettlementPlaced || !this.setupRoadPlaced) return false;
       this.handleSetupTurn();
     } else {
+      // During playing phase, player must have rolled the dice before ending turn
+      if (this.turnPhase === 'roll') return false;
+
       const player = this.players[this.currentPlayerIndex];
       moveNewCardsToPlayable(player);
       this.devCardPlayedThisTurn = false;
